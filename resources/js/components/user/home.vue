@@ -1,15 +1,69 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from "vue";
+import { ref, onMounted, onBeforeUnmount, computed } from "vue";
+import axios from "axios";
+import { useRoute, useRouter } from "vue-router";
+import Swal from "sweetalert2";
+import { auth } from "../../utils/auth";
+
+const router = useRouter();
 
 const isDropdownVisible = ref(false);
+const isCreatePostModalVisible = ref(false);
+
+const user = computed(() => auth.getUser());
+
+const userInitials = computed(() => {
+    if (!user.value) return "GU";
+    return user.value.name
+        ? user.value.name
+              .split(" ")
+              .map((n) => n[0])
+              .join("")
+              .toUpperCase()
+        : user.value.email.substring(0, 2).toUpperCase();
+});
+
+const logout = async () => {
+    try {
+        await axios.post("/api/logout");
+
+        await Swal.fire({
+            icon: "success",
+            title: "Logout Success",
+            text: "Logout Successfully",
+            timer: 2000,
+            showConfirmButton: false,
+        });
+
+        auth.clearAuth();
+        window.location.href = "/login";
+    } catch (error) {
+        console.error("There's something wrong", error);
+
+        let errorMessage = "Failed to logout. Please Try Again";
+
+        if (error.response?.data?.errors) {
+            const errors = error.response.data.errors;
+            errorMessage = Object.values(errors).flat().join(" ");
+        } else if (error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+        }
+
+        await Swal.fire({
+            icon: "error",
+            title: "Failed!",
+            text: errorMessage,
+            timer: 5000,
+            showConfirmButton: true,
+        });
+
+        auth.clearAuth();
+        window.location.href = "/login";
+    }
+};
 
 function toggleDropdown() {
     isDropdownVisible.value = !isDropdownVisible.value;
-}
-
-function logout() {
-    alert("You have logged out!");
-    isDropdownVisible.value = false;
 }
 
 function handleEscape(e) {
@@ -89,7 +143,7 @@ onBeforeUnmount(() => {
                             <!-- Dropdown Menu -->
                             <div
                                 v-show="isDropdownVisible"
-                                class="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg"
+                                class="absolute left-30 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg"
                             >
                                 <div class="py-1">
                                     <!-- Dropdown item: Profile -->

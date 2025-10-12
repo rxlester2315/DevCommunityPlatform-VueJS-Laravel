@@ -44,70 +44,49 @@ public function store(Request $request)
 }
 
 
-    public function authenticate(Request $request){
-
+ public function authenticate(Request $request)
+    {
         $request->validate([
             'email' => 'required|string|email',
             'password' => 'required|string',
         ]);
 
-
-
-        $credentials = $request->only('email','password');
-        if(Auth::attempt($credentials)) {
-           
+        $credentials = $request->only('email', 'password');
+        
+        if (Auth::attempt($credentials)) {
             $user = Auth::user();
             $dt = Carbon::now('Asia/Manila');
 
-            if($user->status !== 'Active'){
-                Auth::logout();
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Your acount is not active'
-                ] , 401);
-            }
+            // Record login activity
+            DB::table('activity_logs')->insert([
+                'name' => $user->name,
+                'email' => $user->email,
+                'description' => 'Has Login',
+                'status_activity' => 'Online',
+                'date_time' => $dt,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 
             $request->session()->regenerate();
 
-
-              DB::table('activity_logs')->insert([
-            'name'        => $user->name,
-            'email'       => $user->email,
-            'description' => 'Has Login',
-            'status_activity' => 'Online',
-            'date_time'   => $dt,
-            'created_at' => now(),
-            'updated_at' => now(),
-
-
-
-
-        ]);
+            return response()->json([
+                'success' => true,
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'last_login' => $dt->toDateTimeString(),
+                ],
+                'message' => 'Login successful'
+            ]);
+        }
 
         return response()->json([
-            'success' => true,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'last_login' => $dt->toDateTimeString(),
-            ],
-            'message' => 'Login successful'
-        ]);
- 
-
-}
-  return response()->json([
-        'success' => false,
-        'message' => 'Invalid credentials or account not active'
-    ], 401);
-
-
-
-
-
-}
+            'success' => false,
+            'message' => 'Invalid credentials'
+        ], 401);
+    }
 
 
 public function getUser(Request $request){
@@ -134,78 +113,48 @@ public function getUser(Request $request){
 }
 
 
-    public function logout(Request $request){
-
+public function logout(Request $request)
+{
+    try {
         $user = Auth::user();
         $dt = Carbon::now('Asia/Manila');
 
+        \Log::info('Logout process started for user: ' . ($user ? $user->email : 'No user'));
 
-        if($user){
+        if ($user) {
             DB::table('activity_logs')->insert([
                 'name' => $user->name,
-                'email'=> $user->email,
-                'description'=> 'Has Logout',
+                'email' => $user->email,
+                'description' => 'Has Logout',
                 'status_activity' => 'Offline',
                 'date_time' => $dt,
                 'created_at' => now(),
                 'updated_at' => now(),
-
             ]);
+            
+            \Log::info('Logout activity recorded for: ' . $user->email);
         }
 
-        Auth::logout();
+        Auth::guard('web')->logout();
+        
+       
 
-    $request->session()->invalidate();
-    $request->session()->regenerateToken();
+        \Log::info('Session destroyed successfully');
 
-    return response()->json([
-        'success' => true,
-        'message' => 'Logout successful'
-    ]);
+        return response()->json([
+            'success' => true,
+            'message' => 'Logout successful'
+        ]);
 
+    } catch (\Exception $e) {
+        \Log::error('Logout error: ' . $e->getMessage());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Logout failed: ' . $e->getMessage()
+        ], 500);
     }
-
-
-
-
-
-    public function getUserActivity(Request $request){
-    
-    $user = Auth::user();
-
-    $activities = DB::table('activity_logs')
-    ->where('email',$user->email)
-    ->orderBy('date_time' ,'desc')
-    ->get(['description','status_activity','date_time']);
-
-
-    return response()->json([
-        'success'=> true,
-        'activities' => $activities
-    ]);
-
-
-
-
-    }
-
-
-    public function getLastLogin(Request $request)
-{
-    $user = Auth::user();
-    
-    $lastLogin = DB::table('activity_logs')
-        ->where('email', $user->email)
-        ->where('description', 'Has login')
-        ->orderBy('date_time', 'desc')
-        ->first();
-
-    return response()->json([
-        'success' => true,
-        'last_login' => $lastLogin ? $lastLogin->date_time : null
-    ]);
 }
-
 
     
 }

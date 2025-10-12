@@ -44,10 +44,18 @@ export const auth = {
 
     async logout() {
         try {
-            await axios.post("/api/logout");
+            console.log("Starting logout process...");
+
+            const response = await axios.post("/api/logout");
+            console.log("Logout API call completed:", response.data);
+
+            this.clearAuth();
+            console.log("Local auth cleared");
+
+            window.location.href = "/login";
         } catch (error) {
             console.error("Logout API call failed", error);
-        } finally {
+
             this.clearAuth();
             window.location.href = "/login";
         }

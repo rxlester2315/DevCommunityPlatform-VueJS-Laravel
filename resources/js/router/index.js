@@ -17,19 +17,19 @@ const routes = [
         path: "/login",
         name: "auth.login",
         component: userLogin,
-        meta: { requiresAuth: false, guestOnly: true }, // Only for guests
+        meta: { requiresAuth: false, guestOnly: true },
     },
     {
         path: "/registers",
         name: "auth.register",
         component: userRegister,
-        meta: { requiresAuth: false, guestOnly: true }, // Only for guests
+        meta: { requiresAuth: false, guestOnly: true },
     },
     {
         path: "/home",
         name: "user.home",
         component: userHome,
-        meta: { requiresAuth: true }, // Requires authentication
+        meta: { requiresAuth: true },
     },
     {
         path: "/:pathMatch(.*)",
