@@ -59,6 +59,46 @@ class HomeController extends Controller
             'posts' => $posts
         ]);
     }
+
+
+    public function deletePost($id){
+
+        try{
+            $post = Post::findOrFail($id);
+
+                $post->delete();
+
+                if($post->image){
+                    
+                    Storage::disk('public')->delete($post->image);
+
+                }
+
+            return response()->json([
+            'success' => true,
+            'message' => 'Post deleted successfully',
+            'post_id' => $id
+        ], 200); // 
+
+
+
+
+          
+        }catch(\Illuminate\Database\Eloquent\ModelNotFoundException $e){
+            
+            return response()->json([
+            'success' => false,
+            'message' => 'Post not found'
+        ], 404);
+
+        }catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error deleting post: ' . $e->getMessage()
+        ], 500);
+    }
+       
+    }
     
 
 

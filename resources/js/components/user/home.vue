@@ -41,6 +41,45 @@ async function fetchPosts() {
     }
 }
 
+async function deletePost($postId) {
+    const result = await Swal.fire({
+        icon: "warning",
+        title: "Are you sure?",
+        text: "You won't be able to revert this!",
+        showCancelButton: true,
+        confirmButtonText: "Yes, Delete it",
+        cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+        const response = await axios.delete(`/api/posts/${$postId}`);
+
+        await Swal.fire({
+            icon: "success",
+            title: "Deleted!!",
+            text: "Your post has been deleted",
+            timer: 2000,
+            showConfirmButton: true,
+        });
+
+        await fetchPosts();
+    } catch (error) {
+        console.error("Error Delete Post", error);
+        let errorMessage = "Failed to delete post , Please Try again.";
+
+        if (error.reponse?.data?.message) {
+            errorMessage = error.response.data.message;
+        }
+        await Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: errorMessage,
+        });
+    }
+}
+
 function formatTimeAgo(dateString) {
     const date = new Date(dateString);
     const now = new Date();
@@ -742,6 +781,16 @@ onBeforeUnmount(() => {
                                             post.published_at || post.created_at
                                         )
                                     }}</span>
+                                    <button
+                                        v-if="user && post.user_id === user.id"
+                                        @click="deletePost(post.id)"
+                                        class="group p-2 rounded-full bg-red-600 text-white hover:bg-red-700 transition-all duration-200 ease-in-out transform hover:scale-110 focus:outline-none"
+                                        title="Delete Post"
+                                    >
+                                        <i
+                                            class="ri-delete-bin-line text-[18px] group-hover:scale-110"
+                                        ></i>
+                                    </button>
                                 </div>
 
                                 <!-- Post Title -->
