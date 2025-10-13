@@ -24,8 +24,13 @@ export const auth = {
     },
 
     getUser() {
-        const user = sessionStorage.getItem("user");
-        return user ? JSON.parse(user) : null;
+        try {
+            const userData = localStorage.getItem("user");
+            return userData ? JSON.parse(userData) : null;
+        } catch (error) {
+            console.error("Error parsing user data:", error);
+            return null;
+        }
     },
     setUser(userData) {
         sessionStorage.setItem(

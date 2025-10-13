@@ -4,24 +4,160 @@ import axios from "axios";
 import { useRoute, useRouter } from "vue-router";
 import Swal from "sweetalert2";
 import { auth } from "../../utils/auth";
+import "remixicon/fonts/remixicon.css";
 
 const router = useRouter();
 
 const isDropdownVisible = ref(false);
 const isCreatePostModalVisible = ref(false);
-
-const user = computed(() => auth.getUser());
+const postContent = ref("");
+const selectedImage = ref(null);
+const imagePreview = ref(null);
+const isLoading = ref(false);
+const user = ref(null);
 
 const userInitials = computed(() => {
     if (!user.value) return "GU";
-    return user.value.name
-        ? user.value.name
-              .split(" ")
-              .map((n) => n[0])
-              .join("")
-              .toUpperCase()
-        : user.value.email.substring(0, 2).toUpperCase();
+
+    if (user.value.name) {
+        return user.value.name
+            .split(" ")
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase()
+            .substring(0, 2);
+    }
+
+    return user.value.email
+        ? user.value.email.substring(0, 2).toUpperCase()
+        : "GU";
 });
+
+function openCreatePostModal() {
+    isCreatePostModalVisible.value = true;
+}
+
+function closeCreatePostModal() {
+    isCreatePostModalVisible.value = false;
+    resetForm();
+}
+
+function resetForm() {
+    postContent.value = "";
+    selectedImage.value = null;
+    imagePreview.value = null;
+}
+
+function handleImageSelect(event) {
+    const file = event.target.files[0];
+
+    if (file) {
+        if (!file.type.startsWith("image/")) {
+            Swal.fire({
+                icon: "error",
+                title: "Invalid File",
+                text: "Please Select Image file Only",
+            });
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            Swal.fire({
+                icon: "error",
+                title: "File to Large",
+                text: "Please Select an image Smaller than 5MB",
+            });
+            return;
+        }
+
+        selectedImage.value = file;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            imagePreview.value = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function removeImage() {
+    selectedImage.value = null;
+    imagePreview.value = null;
+}
+
+async function submitPost() {
+    if (!postContent.value.trim() && !selectedImage.value) {
+        Swal.fire({
+            icon: "error",
+            title: "Empty Post",
+            text: "Please add some content or an image to your post",
+        });
+        return;
+    }
+
+    isLoading.value = true;
+
+    try {
+        const formData = new FormData();
+        formData.append("content", postContent.value.trim());
+
+        if (selectedImage.value) {
+            formData.append("image", selectedImage.value);
+        }
+
+        const response = await axios.post("/api/posts", formData, {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+        });
+
+        await Swal.fire({
+            icon: "success",
+            title: "Post Created",
+            text: "Your post has been published successfully",
+            timer: 2000,
+            showConfirmButton: false,
+        });
+
+        closeCreatePostModal();
+    } catch (error) {
+        console.error("Error Creating Post", error);
+
+        let errorMessage = "Failed To create post. Please try again";
+
+        if (error.response?.data?.errors) {
+            const errors = error.response.data.errors;
+            errorMessage = Object.values(errors).flat().join(" ");
+        } else if (error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+        }
+
+        await Swal.fire({
+            icon: "error",
+            title: "Failed to post",
+            text: errorMessage,
+        });
+    } finally {
+        isLoading.value = false;
+    }
+}
+
+async function loadUserData() {
+    try {
+        const userData = auth.getUser();
+        console.log("User data from auth:", userData);
+
+        if (userData) {
+            user.value = userData;
+        } else {
+            const response = await axios.get("/api/user");
+            user.value = response.data;
+        }
+    } catch (error) {
+        console.error("Error loading user data:", error);
+        user.value = null;
+    }
+}
 
 const logout = async () => {
     try {
@@ -32,7 +168,7 @@ const logout = async () => {
             title: "Logout Success",
             text: "Logout Successfully",
             timer: 2000,
-            showConfirmButton: false,
+            showConfirmButton: true,
         });
 
         auth.clearAuth();
@@ -66,20 +202,31 @@ function toggleDropdown() {
     isDropdownVisible.value = !isDropdownVisible.value;
 }
 
+function handleBackdropClick(event) {
+    if (event.target.classList.contains("modal-backdrop")) {
+        closeCreatePostModal();
+    }
+}
+
 function handleEscape(e) {
     if (e.key === "Escape") {
         isDropdownVisible.value = false;
+        if (isCreatePostModalVisible.value) {
+            closeCreatePostModal();
+        }
     }
 }
 
 onMounted(() => {
     document.addEventListener("keydown", handleEscape);
+    loadUserData();
 });
 
 onBeforeUnmount(() => {
     document.removeEventListener("keydown", handleEscape);
 });
 </script>
+
 <template>
     <body class="min-h-screen bg-gray-900">
         <!-- Header -->
@@ -137,7 +284,7 @@ onBeforeUnmount(() => {
                                 class="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-sm font-medium cursor-pointer"
                                 @click="toggleDropdown"
                             >
-                                JD
+                                {{ userInitials }}
                             </div>
 
                             <!-- Dropdown Menu -->
@@ -185,16 +332,193 @@ onBeforeUnmount(() => {
                             <div
                                 class="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-sm font-medium"
                             >
-                                JD
+                                {{ userInitials }}
                             </div>
+
                             <button
-                                onclick="openCreatePostModal()"
+                                @click="openCreatePostModal"
                                 class="flex-1 text-left px-4 py-2.5 bg-gray-800 hover:bg-gray-750 border border-gray-700 rounded-lg text-gray-400 transition-colors"
                             >
                                 Share your thoughts...
                             </button>
+
+                            <div
+                                v-if="isCreatePostModalVisible"
+                                class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop"
+                                @click="handleBackdropClick"
+                            >
+                                <div
+                                    class="absolute inset-0 bg-black bg-opacity-50"
+                                ></div>
+
+                                <div
+                                    class="relative bg-gray-800 rounded-lg w-full max-w-2xl mx-4 shadow-xl"
+                                >
+                                    <!-- Modal Header -->
+                                    <div
+                                        class="flex items-center justify-between p-4 border-b border-gray-700"
+                                    >
+                                        <h3
+                                            class="text-lg font-semibold text-white"
+                                        >
+                                            Create Post
+                                        </h3>
+                                        <button
+                                            @click="closeCreatePostModal"
+                                            class="text-gray-400 hover:text-white transition-colors"
+                                        >
+                                            <svg
+                                                class="w-6 h-6"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M6 18L18 6M6 6l12 12"
+                                                ></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+
+                                    <!-- Modal Body -->
+                                    <form
+                                        @submit.prevent="submitPost"
+                                        class="p-4"
+                                    >
+                                        <!-- User Info -->
+                                        <div class="flex items-center mb-4">
+                                            <div
+                                                class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold mr-3"
+                                            >
+                                                {{ userInitials }}
+                                            </div>
+
+                                            <div>
+                                                <p
+                                                    class="text-white font-semibold"
+                                                >
+                                                    {{
+                                                        user?.name ||
+                                                        user?.email
+                                                    }}
+                                                </p>
+
+                                                <p
+                                                    class="text-white text-[12px] border border-gray-600 bg-gray-600 text-center rounded-[5px]"
+                                                >
+                                                    <i
+                                                        class="ri-earth-line mr-1"
+                                                    ></i
+                                                    >Public
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <!-- Content Textarea -->
+                                        <textarea
+                                            v-model="postContent"
+                                            placeholder="What's on your mind?"
+                                            class="w-full h-32 bg-gray-900 border border-gray-700 rounded-lg p-4 text-white placeholder-gray-400 resize-none focus:outline-none focus:border-blue-500"
+                                        ></textarea>
+
+                                        <!-- Image Preview -->
+                                        <div
+                                            v-if="imagePreview"
+                                            class="mt-4 relative"
+                                        >
+                                            <img
+                                                :src="imagePreview"
+                                                alt="Preview"
+                                                class="w-full h-64 object-cover rounded-lg"
+                                            />
+                                            <button
+                                                @click="removeImage"
+                                                class="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full p-1 text-white hover:bg-opacity-70 transition-colors"
+                                            >
+                                                <svg
+                                                    class="w-5 h-5"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M6 18L18 6M6 6l12 12"
+                                                    ></path>
+                                                </svg>
+                                            </button>
+                                        </div>
+
+                                        <!-- Add to your post -->
+                                        <div
+                                            class="mt-4 p-3 border border-gray-700 rounded-lg"
+                                        >
+                                            <p
+                                                class="text-gray-400 text-sm mb-2"
+                                            >
+                                                Add to your post
+                                            </p>
+                                            <div
+                                                class="flex items-center space-x-4"
+                                            >
+                                                <label
+                                                    class="flex items-center text-gray-400 hover:text-white cursor-pointer transition-colors"
+                                                >
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        name="image"
+                                                        @change="
+                                                            handleImageSelect
+                                                        "
+                                                        class="hidden"
+                                                    />
+                                                    <svg
+                                                        class="w-6 h-6 mr-2"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                        ></path>
+                                                    </svg>
+                                                    <span>Photo</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </form>
+
+                                    <!-- Modal Footer -->
+                                    <div class="p-4 border-t border-gray-700">
+                                        <button
+                                            @click="submitPost"
+                                            :disabled="
+                                                isLoading ||
+                                                (!postContent.trim() &&
+                                                    !selectedImage)
+                                            "
+                                            class="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+                                        >
+                                            <span v-if="isLoading"
+                                                >Posting...</span
+                                            >
+                                            <span v-else>Post</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
                             <button
-                                onclick="openCreatePostModal()"
+                                @click="openCreatePostModal"
                                 class="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
                             >
                                 <i class="fas fa-plus mr-2"></i>Post
@@ -293,244 +617,6 @@ onBeforeUnmount(() => {
                                     >
                                         <i class="fas fa-comment"></i>
                                         <span>128 comments</span>
-                                    </button>
-                                    <button
-                                        class="flex items-center gap-2 hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors"
-                                    >
-                                        <i class="fas fa-share"></i>
-                                        <span>Share</span>
-                                    </button>
-                                    <button
-                                        class="flex items-center gap-2 hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors"
-                                    >
-                                        <i class="fas fa-bookmark"></i>
-                                        <span>Save</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </article>
-
-                    <!-- Post 2 -->
-                    <article
-                        class="bg-gray-900 border border-gray-800 rounded-lg mb-4 hover:border-gray-700 transition-colors"
-                    >
-                        <div class="flex gap-4 p-4">
-                            <div class="flex flex-col items-center gap-1">
-                                <button
-                                    class="text-gray-400 hover:text-orange-500 transition-colors"
-                                >
-                                    <i class="fas fa-arrow-up text-xl"></i>
-                                </button>
-                                <span class="text-sm font-medium text-white"
-                                    >1.2k</span
-                                >
-                                <button
-                                    class="text-gray-400 hover:text-blue-500 transition-colors"
-                                >
-                                    <i class="fas fa-arrow-down text-xl"></i>
-                                </button>
-                            </div>
-
-                            <div class="flex-1">
-                                <div
-                                    class="flex items-center gap-2 text-sm text-gray-400 mb-2"
-                                >
-                                    <span
-                                        class="px-2 py-0.5 bg-blue-500/10 text-blue-500 rounded text-xs font-medium"
-                                        >TypeScript</span
-                                    >
-                                    <span
-                                        >Posted by
-                                        <span
-                                            class="text-white hover:underline cursor-pointer"
-                                            >@code_master</span
-                                        ></span
-                                    >
-                                    <span>•</span>
-                                    <span>8 hours ago</span>
-                                </div>
-
-                                <h2
-                                    class="text-xl font-bold text-white mb-2 hover:text-orange-500 cursor-pointer"
-                                >
-                                    TypeScript 5.4: What's New and Why It
-                                    Matters
-                                </h2>
-
-                                <p class="text-gray-300 mb-4 leading-relaxed">
-                                    The latest TypeScript release brings some
-                                    exciting features that will change how we
-                                    write type-safe code. Let's explore the most
-                                    impactful changes...
-                                </p>
-
-                                <div
-                                    class="flex items-center gap-4 text-sm text-gray-400"
-                                >
-                                    <button
-                                        class="flex items-center gap-2 hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors"
-                                    >
-                                        <i class="fas fa-comment"></i>
-                                        <span>89 comments</span>
-                                    </button>
-                                    <button
-                                        class="flex items-center gap-2 hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors"
-                                    >
-                                        <i class="fas fa-share"></i>
-                                        <span>Share</span>
-                                    </button>
-                                    <button
-                                        class="flex items-center gap-2 hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors"
-                                    >
-                                        <i class="fas fa-bookmark"></i>
-                                        <span>Save</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </article>
-
-                    <!-- Post 3 with Image -->
-                    <article
-                        class="bg-gray-900 border border-gray-800 rounded-lg mb-4 hover:border-gray-700 transition-colors"
-                    >
-                        <div class="flex gap-4 p-4">
-                            <div class="flex flex-col items-center gap-1">
-                                <button
-                                    class="text-gray-400 hover:text-orange-500 transition-colors"
-                                >
-                                    <i class="fas fa-arrow-up text-xl"></i>
-                                </button>
-                                <span class="text-sm font-medium text-white"
-                                    >856</span
-                                >
-                                <button
-                                    class="text-gray-400 hover:text-blue-500 transition-colors"
-                                >
-                                    <i class="fas fa-arrow-down text-xl"></i>
-                                </button>
-                            </div>
-
-                            <div class="flex-1">
-                                <div
-                                    class="flex items-center gap-2 text-sm text-gray-400 mb-2"
-                                >
-                                    <span
-                                        class="px-2 py-0.5 bg-green-500/10 text-green-500 rounded text-xs font-medium"
-                                        >CSS</span
-                                    >
-                                    <span
-                                        >Posted by
-                                        <span
-                                            class="text-white hover:underline cursor-pointer"
-                                            >@design_wizard</span
-                                        ></span
-                                    >
-                                    <span>•</span>
-                                    <span>12 hours ago</span>
-                                </div>
-
-                                <h2
-                                    class="text-xl font-bold text-white mb-2 hover:text-orange-500 cursor-pointer"
-                                >
-                                    Modern CSS Layouts: Grid vs Flexbox in 2025
-                                </h2>
-
-                                <p class="text-gray-300 mb-3 leading-relaxed">
-                                    A comprehensive comparison of when to use
-                                    CSS Grid versus Flexbox, with real-world
-                                    examples and performance considerations.
-                                </p>
-
-                                <div
-                                    class="flex items-center gap-4 text-sm text-gray-400"
-                                >
-                                    <button
-                                        class="flex items-center gap-2 hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors"
-                                    >
-                                        <i class="fas fa-comment"></i>
-                                        <span>234 comments</span>
-                                    </button>
-                                    <button
-                                        class="flex items-center gap-2 hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors"
-                                    >
-                                        <i class="fas fa-share"></i>
-                                        <span>Share</span>
-                                    </button>
-                                    <button
-                                        class="flex items-center gap-2 hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors"
-                                    >
-                                        <i class="fas fa-bookmark"></i>
-                                        <span>Save</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </article>
-
-                    <!-- Post 4 -->
-                    <article
-                        class="bg-gray-900 border border-gray-800 rounded-lg mb-4 hover:border-gray-700 transition-colors"
-                    >
-                        <div class="flex gap-4 p-4">
-                            <div class="flex flex-col items-center gap-1">
-                                <button
-                                    class="text-gray-400 hover:text-orange-500 transition-colors"
-                                >
-                                    <i class="fas fa-arrow-up text-xl"></i>
-                                </button>
-                                <span class="text-sm font-medium text-white"
-                                    >523</span
-                                >
-                                <button
-                                    class="text-gray-400 hover:text-blue-500 transition-colors"
-                                >
-                                    <i class="fas fa-arrow-down text-xl"></i>
-                                </button>
-                            </div>
-
-                            <div class="flex-1">
-                                <div
-                                    class="flex items-center gap-2 text-sm text-gray-400 mb-2"
-                                >
-                                    <span
-                                        class="px-2 py-0.5 bg-purple-500/10 text-purple-500 rounded text-xs font-medium"
-                                        >Career</span
-                                    >
-                                    <span
-                                        >Posted by
-                                        <span
-                                            class="text-white hover:underline cursor-pointer"
-                                            >@tech_lead</span
-                                        ></span
-                                    >
-                                    <span>•</span>
-                                    <span>1 day ago</span>
-                                </div>
-
-                                <h2
-                                    class="text-xl font-bold text-white mb-2 hover:text-orange-500 cursor-pointer"
-                                >
-                                    From Junior to Senior: My 5-Year Journey in
-                                    Tech
-                                </h2>
-
-                                <p class="text-gray-300 mb-4 leading-relaxed">
-                                    Sharing the lessons, mistakes, and
-                                    breakthroughs that shaped my career
-                                    progression. What I wish I knew when I
-                                    started...
-                                </p>
-
-                                <div
-                                    class="flex items-center gap-4 text-sm text-gray-400"
-                                >
-                                    <button
-                                        class="flex items-center gap-2 hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors"
-                                    >
-                                        <i class="fas fa-comment"></i>
-                                        <span>167 comments</span>
                                     </button>
                                     <button
                                         class="flex items-center gap-2 hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors"

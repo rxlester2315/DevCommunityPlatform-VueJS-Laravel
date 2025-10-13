@@ -3,6 +3,8 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\HomeController;
+
 
 
 Route::get('/user', function (Request $request) {
@@ -18,3 +20,4 @@ Route::middleware(['auth:sanctum'])->group(function() {
 
 });
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth');
+Route::post('/posts', [HomeController::class, 'createPost'])->middleware('auth:sanctum');
