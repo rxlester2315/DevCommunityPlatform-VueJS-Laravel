@@ -7,16 +7,54 @@ import { auth } from "../../utils/auth";
 import "remixicon/fonts/remixicon.css";
 
 const router = useRouter();
+const isLoadingPosts = ref(false);
 
 const isDropdownVisible = ref(false);
 const isCreatePostModalVisible = ref(false);
 const postContent = ref("");
 const categoryPost = ref("");
+const posts = ref([]);
 const postTitle = ref("");
 const selectedImage = ref(null);
 const imagePreview = ref(null);
 const isLoading = ref(false);
 const user = ref(null);
+
+async function fetchPosts() {
+    isLoadingPosts.value = true;
+
+    try {
+        const response = await axios.get("/api/posts");
+
+        posts.value = response.data.posts || response.data;
+    } catch (error) {
+        console.error("Error Getting posts:", error);
+        Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "Error to load the data",
+            timer: 3000,
+            showConfirmButton: true,
+        });
+    } finally {
+        isLoadingPosts.value = false;
+    }
+}
+
+function formatTimeAgo(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+
+    if (diffInSeconds < 60) return "Just Now";
+    if (diffInSeconds < 3600)
+        return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+    if (diffInSeconds < 86400)
+        return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+    if (diffInSeconds < 2592000)
+        return `${Math.floor(diffInSeconds / 86400)} days ago`;
+    return date.toLocaleDateString();
+}
 
 const userInitials = computed(() => {
     if (!user.value) return "GU";
@@ -147,6 +185,8 @@ async function submitPost() {
             showConfirmButton: false,
         });
 
+        await fetchPosts();
+
         closeCreatePostModal();
     } catch (error) {
         console.error("Error Creating Post", error);
@@ -247,6 +287,7 @@ function handleEscape(e) {
 
 onMounted(() => {
     document.addEventListener("keydown", handleEscape);
+    fetchPosts();
     loadUserData();
 });
 
@@ -619,8 +660,32 @@ onBeforeUnmount(() => {
                         </button>
                     </div>
 
-                    <!-- Post 1 -->
+                    <!-- heading ng post -->
+                    <div v-if="isLoadingPosts" class="text-center py-8">
+                        <div
+                            class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"
+                        ></div>
+                        <p class="text-gray-400 mt-2">Loading posts...</p>
+                    </div>
+
+                    <!--if empty eto lalabas-->
+                    <div
+                        v-else-if="posts.length === 0"
+                        class="text-center py-12"
+                    >
+                        <i
+                            class="fas fa-newspaper text-4xl text-gray-600 mb-4"
+                        ></i>
+                        <h3 class="text-white text-lg font-semibold mb-2">
+                            No posts yet
+                        </h3>
+                        <p class="text-gray-400">
+                            Be the first to share your thoughts!
+                        </p>
+                    </div>
                     <article
+                        v-for="post in posts"
+                        :key="post.id"
                         class="bg-gray-900 border border-gray-800 rounded-lg mb-4 hover:border-gray-700 transition-colors"
                     >
                         <div class="flex gap-4 p-4">
@@ -631,9 +696,9 @@ onBeforeUnmount(() => {
                                 >
                                     <i class="fas fa-arrow-up text-xl"></i>
                                 </button>
-                                <span class="text-sm font-medium text-white"
-                                    >342</span
-                                >
+                                <span class="text-sm font-medium text-white">
+                                    {{ post.likes_count || 0 }}
+                                </span>
                                 <button
                                     class="text-gray-400 hover:text-blue-500 transition-colors"
                                 >
@@ -646,36 +711,61 @@ onBeforeUnmount(() => {
                                 <div
                                     class="flex items-center gap-2 text-sm text-gray-400 mb-2"
                                 >
+                                    <!-- Category -->
                                     <span
+                                        v-if="post.category_post"
                                         class="px-2 py-0.5 bg-orange-500/10 text-orange-500 rounded text-xs font-medium"
-                                        >JavaScript</span
                                     >
-                                    <span
-                                        >Posted by
+                                        {{ post.category_post }}
+                                    </span>
+
+                                    <!-- Posted by -->
+                                    <span>
+                                        Posted by
                                         <span
                                             class="text-white hover:underline cursor-pointer"
-                                            >@sarah_dev</span
-                                        ></span
-                                    >
+                                        >
+                                            {{
+                                                post.user?.name ||
+                                                "@" +
+                                                    (post.user?.username ||
+                                                        "user")
+                                            }}
+                                        </span>
+                                    </span>
+
                                     <span>•</span>
-                                    <span>4 hours ago</span>
+
+                                    <!-- Time ago -->
+                                    <span>{{
+                                        formatTimeAgo(
+                                            post.published_at || post.created_at
+                                        )
+                                    }}</span>
                                 </div>
 
+                                <!-- Post Title -->
                                 <h2
                                     class="text-xl font-bold text-white mb-2 hover:text-orange-500 cursor-pointer"
                                 >
-                                    Understanding React Server Components: A
-                                    Deep Dive
+                                    {{ post.title_post }}
                                 </h2>
 
+                                <!-- Post Content -->
                                 <p class="text-gray-300 mb-4 leading-relaxed">
-                                    After spending weeks working with React
-                                    Server Components in production, I wanted to
-                                    share my insights and lessons learned. The
-                                    mental model shift is significant, but the
-                                    benefits are worth it...
+                                    {{ post.text_content }}
                                 </p>
 
+                                <!-- Post Image -->
+                                <div v-if="post.image" class="mb-4">
+                                    <img
+                                        :src="'/storage/' + post.image"
+                                        :alt="post.title_post"
+                                        class="w-full h-64 object-cover rounded-lg"
+                                    />
+                                </div>
+
+                                <!-- Action Buttons -->
                                 <div
                                     class="flex items-center gap-4 text-sm text-gray-400"
                                 >
@@ -683,7 +773,12 @@ onBeforeUnmount(() => {
                                         class="flex items-center gap-2 hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors"
                                     >
                                         <i class="fas fa-comment"></i>
-                                        <span>128 comments</span>
+                                        <span
+                                            >{{
+                                                post.comments_count || 0
+                                            }}
+                                            comments</span
+                                        >
                                     </button>
                                     <button
                                         class="flex items-center gap-2 hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors"

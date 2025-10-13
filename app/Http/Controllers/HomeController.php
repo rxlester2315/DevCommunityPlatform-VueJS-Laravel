@@ -27,7 +27,7 @@ class HomeController extends Controller
             $imagePath = $request->file('image')->store('posts', 'public');
         }
 
-        $post = Post::create([
+        $posts = Post::create([
             'user_id' => auth()->id(),
             'text_content' => $validated['content'],
             'title_post' => $validated['title_post'],
@@ -38,10 +38,26 @@ class HomeController extends Controller
             'published_at' => now(),
         ]);
 
+        $posts->load('user');
+
         return response()->json([
             'message' => 'Post created successfully',
-            'post' => $post
+            'posts' => $posts
         ], 201);
+    }
+
+
+    public function getPost(){
+        $posts = Post::with(['user' => function($query){
+            $query->select('id','name','email');
+        }])
+        ->orderBy('created_at','desc')
+        ->get();
+
+
+        return response()->json([
+            'posts' => $posts
+        ]);
     }
     
 

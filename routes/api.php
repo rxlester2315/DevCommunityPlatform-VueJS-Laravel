@@ -21,3 +21,4 @@ Route::middleware(['auth:sanctum'])->group(function() {
 });
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth');
 Route::post('/posts', [HomeController::class, 'createPost'])->middleware('auth:sanctum');
+Route::get('/posts', [HomeController::class, 'getPost']);
