@@ -14,7 +14,10 @@ class Post extends Model
         'comments_count',
         'image',
         'is_active',
-        'published_at'
+        'published_at',
+        'title_post',
+        'category_post'
+
 
     ];
           protected $table = 'post';

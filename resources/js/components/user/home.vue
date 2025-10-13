@@ -11,6 +11,8 @@ const router = useRouter();
 const isDropdownVisible = ref(false);
 const isCreatePostModalVisible = ref(false);
 const postContent = ref("");
+const categoryPost = ref("");
+const postTitle = ref("");
 const selectedImage = ref(null);
 const imagePreview = ref(null);
 const isLoading = ref(false);
@@ -44,6 +46,8 @@ function closeCreatePostModal() {
 
 function resetForm() {
     postContent.value = "";
+    postTitle.value = "";
+    categoryPost.value = "";
     selectedImage.value = null;
     imagePreview.value = null;
 }
@@ -86,11 +90,33 @@ function removeImage() {
 }
 
 async function submitPost() {
+    if (!postTitle.value.trim()) {
+        Swal.fire({
+            icon: "error",
+            title: "Empty Title",
+            text: "Please add some content or an Title to your post",
+            timer: 2000,
+            showConfirmButton: true,
+        });
+    }
+
+    if (!categoryPost.value) {
+        Swal.fire({
+            icon: "error",
+            title: "Empty Category",
+            text: "Please add some content or an Category to your post",
+            timer: 2000,
+            showConfirmButton: true,
+        });
+    }
+
     if (!postContent.value.trim() && !selectedImage.value) {
         Swal.fire({
             icon: "error",
             title: "Empty Post",
             text: "Please add some content or an image to your post",
+            timer: 2000,
+            showConfirmButton: true,
         });
         return;
     }
@@ -100,6 +126,8 @@ async function submitPost() {
     try {
         const formData = new FormData();
         formData.append("content", postContent.value.trim());
+        formData.append("title_post", postTitle.value.trim());
+        formData.append("category_post", categoryPost.value);
 
         if (selectedImage.value) {
             formData.append("image", selectedImage.value);
@@ -279,7 +307,6 @@ onBeforeUnmount(() => {
                             ></span>
                         </button>
                         <div class="relative inline-block text-left">
-                            <!-- User Icon -->
                             <div
                                 class="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-sm font-medium cursor-pointer"
                                 @click="toggleDropdown"
@@ -287,25 +314,21 @@ onBeforeUnmount(() => {
                                 {{ userInitials }}
                             </div>
 
-                            <!-- Dropdown Menu -->
                             <div
                                 v-show="isDropdownVisible"
                                 class="absolute left-30 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg"
                             >
                                 <div class="py-1">
-                                    <!-- Dropdown item: Profile -->
                                     <a
                                         href="#"
                                         class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                         >Profile</a
                                     >
-                                    <!-- Dropdown item: Settings -->
                                     <a
                                         href="#"
                                         class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                         >Settings</a
                                     >
-                                    <!-- Dropdown item: Logout -->
                                     <a
                                         href="#"
                                         @click="logout"
@@ -417,12 +440,56 @@ onBeforeUnmount(() => {
                                             </div>
                                         </div>
 
+                                        <!-- Title Post -->
+                                        <input
+                                            type="text"
+                                            placeholder="Title Post"
+                                            v-model="postTitle"
+                                            class="w-full h-10 mb-5 bg-gray-900 border border-gray-700 rounded-lg p-4 text-white placeholder-gray-400 resize-none focus:outline-none focus:border-blue-500"
+                                        />
                                         <!-- Content Textarea -->
+
                                         <textarea
                                             v-model="postContent"
                                             placeholder="What's on your mind?"
                                             class="w-full h-32 bg-gray-900 border border-gray-700 rounded-lg p-4 text-white placeholder-gray-400 resize-none focus:outline-none focus:border-blue-500"
                                         ></textarea>
+
+                                        <!-- Dropdown  Area to -->
+                                        <div class="mb-4">
+                                            <select
+                                                v-model="categoryPost"
+                                                class="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500"
+                                            >
+                                                <option
+                                                    value=""
+                                                    disabled
+                                                    selected
+                                                >
+                                                    Select Category
+                                                </option>
+                                                <option value="Technology">
+                                                    Technology
+                                                </option>
+                                                <option value="Programming">
+                                                    Programming
+                                                </option>
+                                                <option value="Web Development">
+                                                    Web Development
+                                                </option>
+                                                <option
+                                                    value="Mobile Development"
+                                                >
+                                                    Mobile Development
+                                                </option>
+                                                <option value="Design">
+                                                    Design
+                                                </option>
+                                                <option value="Other">
+                                                    Other
+                                                </option>
+                                            </select>
+                                        </div>
 
                                         <!-- Image Preview -->
                                         <div

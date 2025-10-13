@@ -16,7 +16,10 @@ class HomeController extends Controller
     {
         $validated = $request->validate([
             'content' => 'required|string|max:5000',
+            'title_post' => 'required|string|max:255',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'category_post' => 'required|string|max:255',
+
         ]);
 
         $imagePath = null;
@@ -27,6 +30,8 @@ class HomeController extends Controller
         $post = Post::create([
             'user_id' => auth()->id(),
             'text_content' => $validated['content'],
+            'title_post' => $validated['title_post'],
+            'category_post'=>$validated['category_post'],
             'image' => $imagePath,
             'likes_count' => 0,
             'comments_count' => 0,
