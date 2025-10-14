@@ -23,3 +23,4 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth');
 Route::post('/posts', [HomeController::class, 'createPost'])->middleware('auth:sanctum');
 Route::get('/posts', [HomeController::class, 'getPost']);
 Route::delete('/posts/{id}', [HomeController::class, 'deletePost'])->middleware('auth:sanctum');
+Route::put('/posts/{id}', [HomeController::class, 'update'])->middleware('auth:sanctum');

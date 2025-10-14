@@ -8,6 +8,17 @@ import "remixicon/fonts/remixicon.css";
 
 const router = useRouter();
 const isLoadingPosts = ref(false);
+const isSettingVisibile = ref(false);
+
+// edit reactive variables
+
+const isEditModalVisible = ref(false);
+const editingPost = ref(null);
+const editPostContent = ref("");
+const editPostTitle = ref("");
+const editCategPost = ref("");
+const editSelectImage = ref(null);
+const editImagePreview = ref(null);
 
 const isDropdownVisible = ref(false);
 const isCreatePostModalVisible = ref(false);
@@ -114,6 +125,161 @@ const userInitials = computed(() => {
 
 function openCreatePostModal() {
     isCreatePostModalVisible.value = true;
+}
+
+// edit post post function modal
+
+function openEditModal(post) {
+    editingPost.value = post;
+    editPostContent.value = post.text_content;
+    editPostTitle.value = post.title_post;
+    editCategPost.value = post.category_post;
+    editImagePreview.value = post.image ? "/storage/" + post.image : null;
+    isEditModalVisible.value = true;
+}
+
+function closeEditModal() {
+    isEditModalVisible.value = false;
+    editingPost.value = null;
+    editPostContent.value = "";
+    editPostTitle.value = "";
+    editCategPost.value = "";
+    editImagePreview.value = null;
+    editSelectImage.value = null;
+}
+
+function handleEditImageSelect(event) {
+    const file = event.target.files[0];
+
+    if (file) {
+        if (!file.type.startsWith("image/")) {
+            Swal.fire({
+                icon: "error",
+                title: "Invalid File",
+                text: "Please Select an image file only",
+            });
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            Swal.fire({
+                icon: "error",
+                title: "File Too Large",
+                text: "Please Select an image smaller than 5MB",
+            });
+            return; // ✅ Add return statement
+        }
+
+        editSelectImage.value = file;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            editImagePreview.value = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function removeEditImage() {
+    editSelectImage.value = null;
+    editImagePreview.value = editingPost.value.image
+        ? "/storage/" + editingPost.value.image
+        : null;
+}
+
+async function UpdatePost() {
+    if (!editPostTitle.value || !editPostTitle.value.trim()) {
+        await Swal.fire({
+            icon: "error",
+            title: "Empty Title",
+            text: "Please add a title to your post",
+            timer: 3000,
+            showConfirmButton: true,
+        });
+        return;
+    }
+
+    if (!editCategPost.value) {
+        await Swal.fire({
+            icon: "error",
+            title: "Empty Category",
+            text: "Please select a category for your post",
+            timer: 3000,
+            showConfirmButton: true,
+        });
+        return;
+    }
+
+    const hasContent = editPostContent.value && editPostContent.value.trim();
+    const hasImage = editSelectImage.value || editingPost.value.image;
+
+    if (!hasContent && !hasImage) {
+        await Swal.fire({
+            icon: "error",
+            title: "Empty Post",
+            text: "Please add some content or an image to your post",
+            timer: 3000,
+            showConfirmButton: true,
+        });
+        return;
+    }
+
+    isLoading.value = true;
+
+    try {
+        const formData = new FormData();
+
+        formData.append("editPostContent", editPostContent.value.trim());
+        formData.append("title_post", editPostTitle.value.trim());
+        formData.append("editCategPost", editCategPost.value.trim());
+        formData.append("_method", "PUT");
+
+        if (editSelectImage.value) {
+            formData.append("image", editSelectImage.value);
+        }
+
+        const response = await axios.post(
+            `/api/posts/${editingPost.value.id}`,
+            formData,
+            {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+            }
+        );
+
+        await Swal.fire({
+            icon: "success",
+            title: "Update Success",
+            text: "Post Updated Successfully",
+            timer: 2000,
+            showConfirmButton: true,
+        });
+
+        await fetchPosts();
+        closeEditModal();
+    } catch (error) {
+        console.error("There something wrong please check", error);
+
+        let errorMessage = "Error Please try again";
+
+        if (error.response?.data?.errors) {
+            const errors = error.response.data.errors;
+            errorMessage = Object.values(errors).flat().join(", ");
+        } else if (error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+        }
+
+        await Swal.fire({
+            icon: "error",
+            title: "Update Failed",
+            text: errorMessage,
+            timer: 3000,
+            showConfirmButton: true,
+        });
+    } finally {
+        isLoading.value = false;
+    }
 }
 
 function closeCreatePostModal() {
@@ -307,6 +473,10 @@ const logout = async () => {
 
 function toggleDropdown() {
     isDropdownVisible.value = !isDropdownVisible.value;
+}
+
+function toogleDropDownSetting() {
+    isSettingVisibile.value = !isSettingVisibile.value;
 }
 
 function handleBackdropClick(event) {
@@ -781,16 +951,256 @@ onBeforeUnmount(() => {
                                             post.published_at || post.created_at
                                         )
                                     }}</span>
+
                                     <button
                                         v-if="user && post.user_id === user.id"
                                         @click="deletePost(post.id)"
-                                        class="group p-2 rounded-full bg-red-600 text-white hover:bg-red-700 transition-all duration-200 ease-in-out transform hover:scale-110 focus:outline-none"
+                                        class="group p-2 rounded-full text-white hover: transition-all duration-200 ease-in-out transform hover:scale-110 focus:outline-none"
                                         title="Delete Post"
                                     >
                                         <i
                                             class="ri-delete-bin-line text-[18px] group-hover:scale-110"
                                         ></i>
                                     </button>
+                                    <!-- Edit Button -->
+                                    <button
+                                        v-if="user && post.user_id === user.id"
+                                        @click="openEditModal(post)"
+                                        class="group p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 ease-in-out transform hover:scale-110 focus:outline-none"
+                                        title="Edit Post"
+                                    >
+                                        <i
+                                            class="ri-edit-line text-[18px] group-hover:scale-110"
+                                        ></i>
+                                    </button>
+
+                                    <!-- Edit Post Modal -->
+                                    <div
+                                        v-if="isEditModalVisible"
+                                        class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop"
+                                        @click="closeEditModal"
+                                    >
+                                        <div
+                                            class="absolute inset-0 bg-black bg-opacity-50"
+                                        ></div>
+
+                                        <div
+                                            class="relative bg-gray-800 rounded-lg w-full max-w-2xl mx-4 shadow-xl"
+                                            @click.stop
+                                        >
+                                            <!-- Modal Header -->
+                                            <div
+                                                class="flex items-center justify-between p-4 border-b border-gray-700"
+                                            >
+                                                <h3
+                                                    class="text-lg font-semibold text-white"
+                                                >
+                                                    Edit Post
+                                                </h3>
+                                                <button
+                                                    @click="closeEditModal"
+                                                    class="text-gray-400 hover:text-white transition-colors"
+                                                >
+                                                    <svg
+                                                        class="w-6 h-6"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M6 18L18 6M6 6l12 12"
+                                                        ></path>
+                                                    </svg>
+                                                </button>
+                                            </div>
+
+                                            <!-- Modal Body - Remove the inner p-4 since form has it -->
+                                            <form
+                                                @submit.prevent="UpdatePost"
+                                                class="p-4"
+                                            >
+                                                <!-- User Info -->
+                                                <div
+                                                    class="flex items-center mb-4"
+                                                >
+                                                    <div
+                                                        class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold mr-3"
+                                                    >
+                                                        {{ userInitials }}
+                                                    </div>
+                                                    <div>
+                                                        <p
+                                                            class="text-white font-semibold"
+                                                        >
+                                                            {{
+                                                                user?.name ||
+                                                                user?.email
+                                                            }}
+                                                        </p>
+                                                        <p
+                                                            class="text-white text-[12px] border border-gray-600 bg-gray-600 text-center rounded-[5px]"
+                                                        >
+                                                            <i
+                                                                class="ri-earth-line mr-1"
+                                                            ></i
+                                                            >Public
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Title Post -->
+                                                <input
+                                                    type="text"
+                                                    placeholder="Title Post"
+                                                    v-model="editPostTitle"
+                                                    class="w-full h-10 mb-5 bg-gray-900 border border-gray-700 rounded-lg p-4 text-white placeholder-gray-400 resize-none focus:outline-none focus:border-blue-500"
+                                                />
+
+                                                <!-- Content Textarea -->
+                                                <textarea
+                                                    v-model="editPostContent"
+                                                    placeholder="What's on your mind?"
+                                                    class="w-full h-32 bg-gray-900 border border-gray-700 rounded-lg p-4 text-white placeholder-gray-400 resize-none focus:outline-none focus:border-blue-500"
+                                                ></textarea>
+
+                                                <!-- Dropdown Category -->
+                                                <div class="mb-4">
+                                                    <select
+                                                        v-model="editCategPost"
+                                                        class="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500"
+                                                    >
+                                                        <option
+                                                            value=""
+                                                            disabled
+                                                            selected
+                                                        >
+                                                            Select Category
+                                                        </option>
+                                                        <option
+                                                            value="Technology"
+                                                        >
+                                                            Technology
+                                                        </option>
+                                                        <option
+                                                            value="Programming"
+                                                        >
+                                                            Programming
+                                                        </option>
+                                                        <option
+                                                            value="Web Development"
+                                                        >
+                                                            Web Development
+                                                        </option>
+                                                        <option
+                                                            value="Mobile Development"
+                                                        >
+                                                            Mobile Development
+                                                        </option>
+                                                        <option value="Design">
+                                                            Design
+                                                        </option>
+                                                        <option value="Other">
+                                                            Other
+                                                        </option>
+                                                    </select>
+                                                </div>
+
+                                                <!-- Image Preview -->
+                                                <!-- Image Preview -->
+                                                <div
+                                                    v-if="editImagePreview"
+                                                    class="mt-4 relative"
+                                                >
+                                                    <img
+                                                        :src="editImagePreview"
+                                                        alt="Preview"
+                                                        class="w-full h-64 object-cover rounded-lg"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        @click="removeEditImage"
+                                                        class="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full p-1 text-white hover:bg-opacity-70 transition-colors"
+                                                    >
+                                                        <svg
+                                                            class="w-5 h-5"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            viewBox="0 0 24 24"
+                                                        >
+                                                            <path
+                                                                stroke-linecap="round"
+                                                                stroke-linejoin="round"
+                                                                stroke-width="2"
+                                                                d="M6 18L18 6M6 6l12 12"
+                                                            ></path>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+
+                                                <!-- Add to your post -->
+                                                <div
+                                                    class="mt-4 p-3 border border-gray-700 rounded-lg"
+                                                >
+                                                    <p
+                                                        class="text-gray-400 text-sm mb-2"
+                                                    >
+                                                        Add to your post
+                                                    </p>
+                                                    <div
+                                                        class="flex items-center space-x-4"
+                                                    >
+                                                        <label
+                                                            class="flex items-center text-gray-400 hover:text-white cursor-pointer transition-colors"
+                                                        >
+                                                            <input
+                                                                type="file"
+                                                                accept="image/*"
+                                                                @change="
+                                                                    handleEditImageSelect
+                                                                "
+                                                                class="hidden"
+                                                            />
+                                                            <svg
+                                                                class="w-6 h-6 mr-2"
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                viewBox="0 0 24 24"
+                                                            >
+                                                                <path
+                                                                    stroke-linecap="round"
+                                                                    stroke-linejoin="round"
+                                                                    stroke-width="2"
+                                                                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                                ></path>
+                                                            </svg>
+                                                            <span>Photo</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Modal Footer with Submit Button -->
+                                                <div
+                                                    class="mt-4 pt-4 border-t border-gray-700"
+                                                >
+                                                    <button
+                                                        type="submit"
+                                                        :disabled="isLoading"
+                                                        class="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+                                                    >
+                                                        <span v-if="isLoading"
+                                                            >Updating...</span
+                                                        >
+                                                        <span v-else
+                                                            >Update Post</span
+                                                        >
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <!-- Post Title -->
