@@ -95,7 +95,7 @@ const login = () => {
                                 d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
                             />
                         </svg>
-                        <span class="text-2xl font-bold">DevBlog</span>
+                        <span class="text-2xl font-bold">DevFeed</span>
                     </div>
                 </a>
                 <h1 class="text-xl font-semibold mb-2">Create your account</h1>

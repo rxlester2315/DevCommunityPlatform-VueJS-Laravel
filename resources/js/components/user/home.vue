@@ -503,6 +503,13 @@ onMounted(() => {
 onBeforeUnmount(() => {
     document.removeEventListener("keydown", handleEscape);
 });
+
+const profile = () => {
+    router.push("/profile");
+};
+const goToProfile = () => {
+    router.push("/profile");
+};
 </script>
 
 <template>
@@ -517,7 +524,7 @@ onBeforeUnmount(() => {
                         <a
                             href="index.html"
                             class="text-xl font-bold text-white"
-                            >DevBlog</a
+                            >DevFeed</a
                         >
                         <nav class="hidden md:flex items-center gap-6">
                             <a
@@ -570,10 +577,12 @@ onBeforeUnmount(() => {
                             >
                                 <div class="py-1">
                                     <a
-                                        href="#"
-                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                        >Profile</a
+                                        @click="goToProfile"
+                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
                                     >
+                                        Profile
+                                    </a>
+
                                     <a
                                         href="#"
                                         class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

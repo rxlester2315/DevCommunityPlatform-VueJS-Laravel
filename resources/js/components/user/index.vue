@@ -28,7 +28,7 @@ const login = () => {
                                     >&lt;/&gt;</span
                                 >
                             </div>
-                            DevBlog
+                            DevFeed
                         </a>
                         <div class="hidden md:flex items-center gap-6">
                             <a
@@ -627,7 +627,7 @@ const login = () => {
                                     >&lt;/&gt;</span
                                 >
                             </div>
-                            DevBlog
+                            DevFeed
                         </div>
                         <p class="text-gray-400 text-sm leading-relaxed">
                             Insights and tutorials for modern web developers.
@@ -734,7 +734,7 @@ const login = () => {
                     class="pt-8 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4"
                 >
                     <p class="text-muted text-sm">
-                        © 2025 DevBlog. All rights reserved.
+                        © 2025 DevFeed. All rights reserved.
                     </p>
                     <p class="text-muted text-sm">
                         Built with HTML & Tailwind CSS

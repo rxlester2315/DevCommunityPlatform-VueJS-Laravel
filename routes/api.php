@@ -24,3 +24,5 @@ Route::post('/posts', [HomeController::class, 'createPost'])->middleware('auth:s
 Route::get('/posts', [HomeController::class, 'getPost']);
 Route::delete('/posts/{id}', [HomeController::class, 'deletePost'])->middleware('auth:sanctum');
 Route::put('/posts/{id}', [HomeController::class, 'update'])->middleware('auth:sanctum');
+
+Route::get('/profile/check', [HomeController::class, 'checkProfile'])->middleware('auth:sanctum');

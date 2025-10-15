@@ -151,4 +151,17 @@ public function update(Request $request, $id)
     ], 200);
 }
 
+
+public function checkProfile()
+    {
+        $user = auth()->user();
+        
+        $hasProfile = Profile::where('user_id', $user->id)->exists();
+
+        return response()->json([
+            'has_profile' => $hasProfile,
+            'user_id' => $user->id,
+            'message' => $hasProfile ? 'Profile exists' : 'No profile found'
+        ]);
+    }
 }
