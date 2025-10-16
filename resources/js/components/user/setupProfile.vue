@@ -28,7 +28,6 @@
                 <div class="bg-[#161616] border border-gray-800 rounded-lg p-8">
                     <h2 class="text-2xl font-bold mb-6">Basic Information</h2>
 
-                    Avatar Upload
                     <div class="mb-8 text-center">
                         <div class="mb-4 flex justify-center">
                             <div class="relative">
@@ -64,7 +63,7 @@
                             >
                             <input
                                 type="text"
-                                placeholder="johndoe"
+                                placeholder="Username"
                                 class="w-full bg-black border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-[#ff6b35] transition-colors"
                                 required
                             />
@@ -79,7 +78,7 @@
                             >
                             <input
                                 type="text"
-                                placeholder="John Doe"
+                                placeholder="Name"
                                 class="w-full bg-black border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-[#ff6b35] transition-colors"
                                 required
                             />
@@ -112,11 +111,28 @@
 
                         <div>
                             <label class="block text-sm font-medium mb-2"
-                                >Website</label
+                                >Website
+                                <span class="text-sm text-gray-400"
+                                    >(Optional)</span
+                                ></label
                             >
                             <input
                                 type="url"
-                                placeholder="https://yourwebsite.com"
+                                placeholder="Porfolio"
+                                class="w-full bg-black border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-[#ff6b35] transition-colors"
+                            />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium mb-2"
+                                >Github
+                                <span class="text-sm text-gray-400"
+                                    >(Optional)</span
+                                ></label
+                            >
+                            <input
+                                type="url"
+                                placeholder="Github Profile"
                                 class="w-full bg-black border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-[#ff6b35] transition-colors"
                             />
                         </div>
