@@ -57,7 +57,6 @@
                         </p>
                     </div>
 
-                    Form Fields
                     <div class="space-y-6">
                         <div>
                             <label class="block text-sm font-medium mb-2"

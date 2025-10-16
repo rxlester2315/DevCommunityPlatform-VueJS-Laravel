@@ -164,4 +164,82 @@ public function checkProfile()
             'message' => $hasProfile ? 'Profile exists' : 'No profile found' // condition statement whether p-exist or n-exist
         ]);
     }
+
+
+public function setupProfile(Request $request){
+
+    $user = auth()->user();
+
+
+    if($user->profile){
+
+        return response()->json([
+            'message' => 'Profile Has already exist',
+            'profile' => $user->profile
+        ] , 409);
+    }
+
+  
+
+   $validated = $request->validate([
+    'bio' => 'required|string|max:255',
+    'photo_profile' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+    'location' => 'required|string|max:100',
+    'website'=> 'nullable|url|max:255',
+    'github_url' => 'nullable|url|max:255',
+
+
+  ]);
+
+  try {
+
+
+     $imageProfilePath = null;
+
+ if($request->hasFile('photo_profile')){
+
+    $imageProfilePath = $request->file('photo_profile')->store('profile' , 'public');
+ }
+
+  $profile = Profile::create([
+    'user_id' => $user->id,
+    'bio' => $validated['bio'],
+    'location' => $validated['location'],
+    'website' => $validated['website'] ?? null,
+    'github_url' => $validated['github_url'] ?? null,
+    'photo_profile' => $imageProfilePath 
+
+   
+  ]);
+
+  $profile->load('user');
+
+       return response()->json([
+                'message' => 'Profile setup successfully',
+                'profile' => $profile
+            ], 201);
+
+
+
+
+
+  }catch (\Exception $e) {
+            \Log::error('Profile setup failed: ' . $e->getMessage());
+            
+            return response()->json([
+                'message' => 'Failed to setup profile',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+            ], 500);
+        }
+
+
+ 
+
+
+
+
+}
+
+
+
 }
