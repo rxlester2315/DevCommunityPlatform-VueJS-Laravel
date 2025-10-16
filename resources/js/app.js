@@ -6,9 +6,9 @@ import "../js/javascriptcp";
 import Swal from "sweetalert2";
 import axios from "axios";
 
-axios.defaults.withCredentials = true;
-axios.defaults.withXSRFToken = true;
-axios.defaults.baseURL = "http://127.0.0.1:8000";
+axios.defaults.withCredentials = true; // this is for cookies and session when mag rerequest
+axios.defaults.withXSRFToken = true; // back-end or laravel protection
+axios.defaults.baseURL = "http://127.0.0.1:8000"; // axios call direct laravel back-end
 
 axios.interceptors.request.use((config) => {
     const token = document

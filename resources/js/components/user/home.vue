@@ -504,9 +504,6 @@ onBeforeUnmount(() => {
     document.removeEventListener("keydown", handleEscape);
 });
 
-const profile = () => {
-    router.push("/profile");
-};
 const goToProfile = () => {
     router.push("/profile");
 };

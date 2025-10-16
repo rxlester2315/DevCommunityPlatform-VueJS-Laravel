@@ -159,9 +159,9 @@ public function checkProfile()
         $hasProfile = Profile::where('user_id', $user->id)->exists();
 
         return response()->json([
-            'has_profile' => $hasProfile,
-            'user_id' => $user->id,
-            'message' => $hasProfile ? 'Profile exists' : 'No profile found'
+            'has_profile' => $hasProfile, // true or false return if may profile or wala
+            'user_id' => $user->id, // return yung id if meron
+            'message' => $hasProfile ? 'Profile exists' : 'No profile found' // condition statement whether p-exist or n-exist
         ]);
     }
 }
