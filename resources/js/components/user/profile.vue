@@ -2,13 +2,13 @@
 import axios from "axios";
 import { useRoute, useRouter } from "vue-router";
 import { ref, onMounted } from "vue";
-import Swal from "sweetalert2";
 
 const profile = ref({
     user: {
         name: "",
         email: "",
     },
+
     bio: "",
     location: "",
     website: "",
@@ -17,14 +17,11 @@ const profile = ref({
     created_at: "",
 });
 
-const isLoading = ref(true);
 const loading = ref(true);
-const userposts = ref([]); // Changed from userpost to userposts for consistency
 
 const fetchProfile = async () => {
     try {
-        // FIX 1: Added leading slash
-        const response = await axios.get("/api/profile/get");
+        const response = await axios.get("api/profile/get");
         profile.value = response.data.profile;
     } catch (error) {
         console.error("Failed to fetch Profiles", error);
@@ -32,49 +29,6 @@ const fetchProfile = async () => {
         loading.value = false;
     }
 };
-
-async function fetchListpost() {
-    isLoading.value = true;
-
-    try {
-        // FIX 2: Correct endpoint - should be /api/profile/posts (plural)
-        const response = await axios.get("/api/profile/posts");
-        // FIX 3: Make sure this matches your backend response structure
-        userposts.value = response.data.posts || response.data.userpost || [];
-    } catch (error) {
-        console.error("There something wrong", error);
-
-        // Only show error if it's not a 404
-        if (error.response?.status !== 404) {
-            await Swal.fire({
-                icon: "error",
-                title: "Error please check",
-                text: "There something wrong fetching data",
-                timer: 3000,
-                showConfirmButton: false,
-            });
-        }
-    } finally {
-        isLoading.value = false;
-    }
-}
-
-function formatTimeAgo(dateString) {
-    if (!dateString) return "Recently";
-
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInSeconds = Math.floor((now - date) / 1000);
-
-    if (diffInSeconds < 60) return "Just Now";
-    if (diffInSeconds < 3600)
-        return `${Math.floor(diffInSeconds / 60)} minutes ago`;
-    if (diffInSeconds < 86400)
-        return `${Math.floor(diffInSeconds / 3600)} hours ago`;
-    if (diffInSeconds < 2592000)
-        return `${Math.floor(diffInSeconds / 86400)} days ago`;
-    return date.toLocaleDateString();
-}
 
 const formatDate = (datestring) => {
     if (!datestring) return "";
@@ -124,12 +78,11 @@ const getGithub = (githublink) => {
         return githublink;
     }
 };
-
 onMounted(() => {
     fetchProfile();
-    fetchListpost(); // FIX 4: Call this function to load posts
 });
 </script>
+
 <template>
     <body class="min-h-screen">
         <!-- Header -->
