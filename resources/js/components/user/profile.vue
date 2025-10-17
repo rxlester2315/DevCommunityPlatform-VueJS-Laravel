@@ -1,3 +1,135 @@
+<script setup>
+import axios from "axios";
+import { useRoute, useRouter } from "vue-router";
+import { ref, onMounted } from "vue";
+import Swal from "sweetalert2";
+
+const profile = ref({
+    user: {
+        name: "",
+        email: "",
+    },
+    bio: "",
+    location: "",
+    website: "",
+    github_url: "",
+    photo_profile: "",
+    created_at: "",
+});
+
+const isLoading = ref(true);
+const loading = ref(true);
+const userposts = ref([]); // Changed from userpost to userposts for consistency
+
+const fetchProfile = async () => {
+    try {
+        // FIX 1: Added leading slash
+        const response = await axios.get("/api/profile/get");
+        profile.value = response.data.profile;
+    } catch (error) {
+        console.error("Failed to fetch Profiles", error);
+    } finally {
+        loading.value = false;
+    }
+};
+
+async function fetchListpost() {
+    isLoading.value = true;
+
+    try {
+        // FIX 2: Correct endpoint - should be /api/profile/posts (plural)
+        const response = await axios.get("/api/profile/posts");
+        // FIX 3: Make sure this matches your backend response structure
+        userposts.value = response.data.posts || response.data.userpost || [];
+    } catch (error) {
+        console.error("There something wrong", error);
+
+        // Only show error if it's not a 404
+        if (error.response?.status !== 404) {
+            await Swal.fire({
+                icon: "error",
+                title: "Error please check",
+                text: "There something wrong fetching data",
+                timer: 3000,
+                showConfirmButton: false,
+            });
+        }
+    } finally {
+        isLoading.value = false;
+    }
+}
+
+function formatTimeAgo(dateString) {
+    if (!dateString) return "Recently";
+
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+
+    if (diffInSeconds < 60) return "Just Now";
+    if (diffInSeconds < 3600)
+        return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+    if (diffInSeconds < 86400)
+        return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+    if (diffInSeconds < 2592000)
+        return `${Math.floor(diffInSeconds / 86400)} days ago`;
+    return date.toLocaleDateString();
+}
+
+const formatDate = (datestring) => {
+    if (!datestring) return "";
+
+    const date = new Date(datestring);
+    return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+    });
+};
+
+const getInitials = (name) => {
+    if (!name) return "UD";
+
+    return name
+        .split(" ")
+        .map((word) => word[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+};
+
+const getUsername = (email) => {
+    if (!email) return "";
+
+    return email.split("@")[0];
+};
+
+const getWebsite = (website) => {
+    if (!website) return "";
+
+    try {
+        const url = new URL(website);
+        return url.hostname.replace("www.", "");
+    } catch {
+        return website;
+    }
+};
+
+const getGithub = (githublink) => {
+    if (!githublink) return "";
+
+    try {
+        const url = new URL(githublink);
+        return url.pathname.replace("/", "");
+    } catch {
+        return githublink;
+    }
+};
+
+onMounted(() => {
+    fetchProfile();
+    fetchListpost(); // FIX 4: Call this function to load posts
+});
+</script>
 <template>
     <body class="min-h-screen">
         <!-- Header -->
@@ -51,7 +183,11 @@
         </header>
 
         <!-- Profile Header -->
+        <div v-if="loading" class="flex justify-center items-center py-20">
+            <div class="text-white">Loading profile...</div>
+        </div>
         <div
+            v-else
             class="bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 border-b border-zinc-800"
         >
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -63,14 +199,28 @@
                         <div
                             class="w-32 h-32 rounded-full bg-gradient-to-br from-orange-500 to-pink-500 p-1"
                         >
+                            <!-- Display profile if meron -->
                             <div
-                                class="w-full h-full rounded-full bg-zinc-900 flex items-center justify-center text-4xl font-bold"
+                                v-if="profile.photo_profile"
+                                class="w-full h-full rounded-full bg-zinc-900 overflow-hidden"
                             >
-                                JD
+                                <img
+                                    :src="'/storage/' + profile.photo_profile"
+                                    :alt="profile.user.name"
+                                    class="w-full h-full object-cover"
+                                />
+                            </div>
+                            <!-- Display initials LIKE RX if wala -->
+                            <div
+                                v-else
+                                class="w-full h-full rounded-full bg-zinc-900 flex items-center justify-center text-4xl font-bold text-white"
+                            >
+                                {{ getInitials(profile.user.name) }}
                             </div>
                         </div>
                         <button
                             class="absolute bottom-0 right-0 w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center hover:bg-orange-600 transition-colors"
+                            @click="router.push('/edit-profile')"
                         >
                             <i class="fas fa-camera text-white text-sm"></i>
                         </button>
@@ -83,10 +233,11 @@
                         >
                             <div>
                                 <h1 class="text-3xl font-bold text-white mb-1">
-                                    John Doe
+                                    {{ profile.user.name || "No Name Set" }}
                                 </h1>
                                 <p class="text-zinc-400">
-                                    @johndoe • Joined January 2024
+                                    @{{ getUsername(profile.user.email) }} •
+                                    Joined {{ formatDate(profile.created_at) }}
                                 </p>
                             </div>
                             <div class="flex items-center gap-3">
@@ -108,36 +259,34 @@
                             </div>
                         </div>
                         <p class="text-zinc-300 mt-4 max-w-2xl">
-                            Full-stack developer passionate about React,
-                            Node.js, and building scalable web applications.
-                            Open source contributor and tech blogger.
+                            {{ profile.bio || "No bio Available" }}
                         </p>
                         <div class="flex items-center gap-6 mt-4 text-sm">
                             <a
                                 href="#"
                                 class="text-zinc-400 hover:text-orange-500 transition-colors"
                             >
-                                <i class="fas fa-map-marker-alt mr-2"></i>San
-                                Francisco, CA
+                                <i class="fas fa-map-marker-alt mr-2"></i
+                                >{{
+                                    profile.location || "No location Available"
+                                }}
                             </a>
                             <a
                                 href="#"
                                 class="text-zinc-400 hover:text-orange-500 transition-colors"
                             >
-                                <i class="fas fa-link mr-2"></i>johndoe.dev
+                                <i class="fas fa-link mr-2"></i
+                                >{{
+                                    getWebsite(profile.website) ||
+                                    "No Website Available"
+                                }}
                             </a>
                             <a
                                 href="#"
                                 class="text-zinc-400 hover:text-orange-500 transition-colors"
                             >
                                 <i class="fab fa-github mr-2"></i
-                                >github.com/johndoe
-                            </a>
-                            <a
-                                href="#"
-                                class="text-zinc-400 hover:text-orange-500 transition-colors"
-                            >
-                                <i class="fab fa-twitter mr-2"></i>@johndoe
+                                >{{ getGithub(profile.github_url) }}
                             </a>
                         </div>
                     </div>
@@ -261,145 +410,6 @@
                                         >
                                             <i class="fas fa-comment mr-2"></i
                                             >45 comments
-                                        </button>
-                                        <button
-                                            class="hover:text-white transition-colors"
-                                        >
-                                            <i class="fas fa-share mr-2"></i
-                                            >Share
-                                        </button>
-                                        <button
-                                            class="hover:text-white transition-colors"
-                                        >
-                                            <i class="fas fa-bookmark mr-2"></i
-                                            >Save
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Post Card 2 -->
-                        <div
-                            class="post-card bg-zinc-900 rounded-lg border border-zinc-800 p-6 transition-colors"
-                        >
-                            <div class="flex items-start gap-4">
-                                <div class="flex flex-col items-center gap-2">
-                                    <button
-                                        class="text-orange-500 hover:text-orange-600 transition-colors"
-                                    >
-                                        <i class="fas fa-arrow-up"></i>
-                                    </button>
-                                    <span
-                                        class="text-sm font-medium text-orange-500"
-                                        >1.2K</span
-                                    >
-                                    <button
-                                        class="text-zinc-400 hover:text-blue-500 transition-colors"
-                                    >
-                                        <i class="fas fa-arrow-down"></i>
-                                    </button>
-                                </div>
-                                <div class="flex-1">
-                                    <div
-                                        class="flex items-center gap-2 text-xs text-zinc-400 mb-2"
-                                    >
-                                        <span
-                                            class="px-2 py-1 bg-blue-500/10 text-blue-500 rounded"
-                                            >React</span
-                                        >
-                                        <span>•</span>
-                                        <span>Posted 1 day ago</span>
-                                    </div>
-                                    <h3
-                                        class="text-lg font-semibold text-white mb-2 hover:text-orange-500 cursor-pointer"
-                                    >
-                                        React Server Components: A Deep Dive
-                                    </h3>
-                                    <p class="text-zinc-400 text-sm mb-4">
-                                        Exploring the new React Server
-                                        Components architecture and how it
-                                        changes the way we build React
-                                        applications...
-                                    </p>
-                                    <div
-                                        class="flex items-center gap-6 text-sm text-zinc-400"
-                                    >
-                                        <button
-                                            class="hover:text-white transition-colors"
-                                        >
-                                            <i class="fas fa-comment mr-2"></i
-                                            >128 comments
-                                        </button>
-                                        <button
-                                            class="hover:text-white transition-colors"
-                                        >
-                                            <i class="fas fa-share mr-2"></i
-                                            >Share
-                                        </button>
-                                        <button
-                                            class="hover:text-white transition-colors"
-                                        >
-                                            <i class="fas fa-bookmark mr-2"></i
-                                            >Save
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Post Card 3 -->
-                        <div
-                            class="post-card bg-zinc-900 rounded-lg border border-zinc-800 p-6 transition-colors"
-                        >
-                            <div class="flex items-start gap-4">
-                                <div class="flex flex-col items-center gap-2">
-                                    <button
-                                        class="text-zinc-400 hover:text-orange-500 transition-colors"
-                                    >
-                                        <i class="fas fa-arrow-up"></i>
-                                    </button>
-                                    <span
-                                        class="text-sm font-medium text-orange-500"
-                                        >856</span
-                                    >
-                                    <button
-                                        class="text-zinc-400 hover:text-blue-500 transition-colors"
-                                    >
-                                        <i class="fas fa-arrow-down"></i>
-                                    </button>
-                                </div>
-                                <div class="flex-1">
-                                    <div
-                                        class="flex items-center gap-2 text-xs text-zinc-400 mb-2"
-                                    >
-                                        <span
-                                            class="px-2 py-1 bg-green-500/10 text-green-500 rounded"
-                                            >Node.js</span
-                                        >
-                                        <span>•</span>
-                                        <span>Posted 3 days ago</span>
-                                    </div>
-                                    <h3
-                                        class="text-lg font-semibold text-white mb-2 hover:text-orange-500 cursor-pointer"
-                                    >
-                                        Optimizing Node.js Performance: Best
-                                        Practices
-                                    </h3>
-                                    <p class="text-zinc-400 text-sm mb-4">
-                                        A collection of proven techniques to
-                                        improve your Node.js application
-                                        performance, from caching strategies to
-                                        database optimization...
-                                    </p>
-                                    <div
-                                        class="flex items-center gap-6 text-sm text-zinc-400"
-                                    >
-                                        <button
-                                            class="hover:text-white transition-colors"
-                                        >
-                                            <i class="fas fa-comment mr-2"></i
-                                            >67 comments
                                         </button>
                                         <button
                                             class="hover:text-white transition-colors"

@@ -18,7 +18,8 @@ class Profile extends Model
         'followers_count',
         'following_count',
         'total_karma',
-        'job_title'
+        'job_title',
+        'photo_profile'
 
 
     ];

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Post;
+use App\Models\Profile;
 use Illuminate\Support\Facades\Storage;
 
 
@@ -241,5 +242,64 @@ public function setupProfile(Request $request){
 }
 
 
+public function getProfile(){
+
+    $user = Auth()->user();
+
+    $user->load('profile');
+
+    $profile = Profile::with('user')->where('user_id', $user->id)->first();
+
+
+    if(!$profile){
+
+        return response()->json([
+            'message' => 'Profile not found',
+
+        ],404);
+    }
+
+    return response()->json([
+        'profile'=> $profile
+    ],200);
+}
+
+
+public function getCurrentUser(){
+
+    $user = auth()->user();
+
+    return response()->json([
+        'name' => $user->name,
+        'email'=> $user->email,
+    ]);
+    
+    }
+
+public function historyPost(){
+    $user = auth()->user();
+    
+    // If posts are related through profile
+    $profile = Profile::where('user_id', $user->id)->first();
+    
+    if(!$profile){
+        return response()->json([
+            'message' => 'Profile not found',
+        ], 404);
+    }
+    
+    // Assuming you have a posts relationship in Profile model
+    $posts = $profile->posts()->orderBy('created_at', 'desc')->get();
+    
+    if($posts->isEmpty()){
+        return response()->json([
+            'message' => 'No posts found',
+        ], 404);
+    }
+
+    return response()->json([
+        'posts' => $posts
+    ], 200);
+}
 
 }
