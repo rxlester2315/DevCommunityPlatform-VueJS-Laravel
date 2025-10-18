@@ -279,7 +279,6 @@ public function getCurrentUser(){
 public function historyPost(){
     $user = auth()->user();
     
-    // If posts are related through profile
     $profile = Profile::where('user_id', $user->id)->first();
     
     if(!$profile){
@@ -288,7 +287,6 @@ public function historyPost(){
         ], 404);
     }
     
-    // Assuming you have a posts relationship in Profile model
     $posts = $profile->posts()->orderBy('created_at', 'desc')->get();
     
     if($posts->isEmpty()){

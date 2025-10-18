@@ -21,7 +21,7 @@ const loading = ref(true);
 
 const fetchProfile = async () => {
     try {
-        const response = await axios.get("api/profile/get");
+        const response = await axios.get("/api/profile/get");
         profile.value = response.data.profile;
     } catch (error) {
         console.error("Failed to fetch Profiles", error);
