@@ -276,18 +276,13 @@ public function getCurrentUser(){
     
     }
 
-public function historyPost(){
+    public function historyPost()
+{
     $user = auth()->user();
     
-    $profile = Profile::where('user_id', $user->id)->first();
-    
-    if(!$profile){
-        return response()->json([
-            'message' => 'Profile not found',
-        ], 404);
-    }
-    
-    $posts = $profile->posts()->orderBy('created_at', 'desc')->get();
+    $posts = Post::where('user_id', $user->id)
+                ->orderBy('created_at', 'desc')
+                ->get();
     
     if($posts->isEmpty()){
         return response()->json([
@@ -299,5 +294,7 @@ public function historyPost(){
         'posts' => $posts
     ], 200);
 }
+
+
 
 }

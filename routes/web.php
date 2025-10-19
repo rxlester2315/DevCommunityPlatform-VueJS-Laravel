@@ -6,8 +6,9 @@ Route::get('/', function () {
     return view('landing-page');
 });
 
+
+
+
 Route::get('/{pathMatch}',function(){
     return view('landing-page');
 })->where('pathMatch','.*');
-
-Route::get('/{any}', [PageController::class, 'index'])->where('any', '.*');

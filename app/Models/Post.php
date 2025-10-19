@@ -22,10 +22,15 @@ class Post extends Model
           protected $table = 'post';
 
 
-  public function user(): BelongsTo{
+   public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 
-      return $this->belongsTo(User::class);
-  }
+   public function getProfileAttribute()
+    {
+        return $this->user->profile;
+    }
 
     
 }

@@ -505,7 +505,7 @@ onBeforeUnmount(() => {
 });
 
 const goToProfile = () => {
-    router.push("/profile");
+    router.push("/profiles");
 };
 </script>
 

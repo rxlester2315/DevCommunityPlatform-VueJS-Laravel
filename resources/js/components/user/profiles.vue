@@ -2,6 +2,7 @@
 import axios from "axios";
 import { useRoute, useRouter } from "vue-router";
 import { ref, onMounted } from "vue";
+// In Vue
 
 const profile = ref({
     user: {
@@ -17,7 +18,11 @@ const profile = ref({
     created_at: "",
 });
 
+const posts = ref([]);
+
 const loading = ref(true);
+
+const isLoadingPosts = ref(true);
 
 const fetchProfile = async () => {
     try {
@@ -27,6 +32,18 @@ const fetchProfile = async () => {
         console.error("Failed to fetch Profiles", error);
     } finally {
         loading.value = false;
+    }
+};
+
+const fetchPost = async () => {
+    try {
+        const response = await axios.get("/api/profile/post");
+
+        posts.value = response.data.posts;
+    } catch (error) {
+        console.error("Failed to fetch post", error);
+    } finally {
+        isLoadingPosts.value = false;
     }
 };
 
@@ -50,6 +67,21 @@ const getInitials = (name) => {
         .toUpperCase()
         .slice(0, 2);
 };
+
+function formatTimeAgo(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+
+    if (diffInSeconds < 60) return "Just Now";
+    if (diffInSeconds < 3600)
+        return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+    if (diffInSeconds < 86400)
+        return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+    if (diffInSeconds < 2592000)
+        return `${Math.floor(diffInSeconds / 86400)} days ago`;
+    return date.toLocaleDateString();
+}
 
 const getUsername = (email) => {
     if (!email) return "";
@@ -80,6 +112,7 @@ const getGithub = (githublink) => {
 };
 onMounted(() => {
     fetchProfile();
+    fetchPost();
 });
 </script>
 
@@ -308,10 +341,19 @@ onMounted(() => {
                         </button>
                     </div>
 
+                    <div v-if="isLoadingPosts" class="text-center py-8">
+                        <div
+                            class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"
+                        ></div>
+                        <p class="text-gray-400 mt-2">Loading posts...</p>
+                    </div>
                     <!-- Posts -->
                     <div class="space-y-4">
                         <!-- Post Card 1 -->
+
                         <div
+                            v-for="post in posts"
+                            :key="post.id"
                             class="post-card bg-zinc-900 rounded-lg border border-zinc-800 p-6 transition-colors"
                         >
                             <div class="flex items-start gap-4">
@@ -336,24 +378,26 @@ onMounted(() => {
                                         class="flex items-center gap-2 text-xs text-zinc-400 mb-2"
                                     >
                                         <span
-                                            class="px-2 py-1 bg-orange-500/10 text-orange-500 rounded"
-                                            >JavaScript</span
+                                            v-if="post.category_post"
+                                            class="px-2 py-0.5 bg-orange-500/10 text-orange-500 rounded text-xs font-medium"
                                         >
+                                            {{ post.category_post }}
+                                        </span>
                                         <span>•</span>
-                                        <span>Posted 2 hours ago</span>
+                                        <span>{{
+                                            formatTimeAgo(
+                                                post.published_at ||
+                                                    post.created_at
+                                            )
+                                        }}</span>
                                     </div>
                                     <h3
                                         class="text-lg font-semibold text-white mb-2 hover:text-orange-500 cursor-pointer"
                                     >
-                                        Building a Real-time Chat Application
-                                        with WebSockets
+                                        {{ post.title_post }}
                                     </h3>
                                     <p class="text-zinc-400 text-sm mb-4">
-                                        Learn how to build a scalable real-time
-                                        chat application using WebSockets,
-                                        Node.js, and React. This comprehensive
-                                        guide covers everything from setup to
-                                        deployment...
+                                        {{ post.text_content }}
                                     </p>
                                     <div
                                         class="flex items-center gap-6 text-sm text-zinc-400"

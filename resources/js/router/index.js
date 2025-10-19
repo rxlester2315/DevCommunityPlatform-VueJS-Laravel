@@ -4,7 +4,7 @@ import notFound from "../components/notFound.vue";
 import userLogin from "../components/auth/login.vue";
 import userRegister from "../components/auth/register.vue";
 import userHome from "../components/user/home.vue";
-import userProfile from "../components/user/profile.vue";
+import userProfiles from "../components/user/profiles.vue";
 import { auth } from "../utils/auth";
 import SetupProfileS from "../components/user/setupProfile.vue";
 import axios from "axios";
@@ -31,10 +31,11 @@ const routes = [
         component: userRegister,
         meta: { requiresAuth: false, guestOnly: true },
     },
+
     {
-        path: "/profile",
-        name: "user.profile",
-        component: userProfile,
+        path: "/profiles",
+        name: "user.profiles",
+        component: userProfiles,
         meta: { requiresAuth: true, requiresProfile: true },
     },
     {
@@ -61,6 +62,8 @@ const router = createRouter({
     history: createWebHistory(),
     routes,
 });
+
+// Add this after your routes
 
 // this like gate before enting to certain gate so more on guard siya
 router.beforeEach(async (to, from, next) => {
