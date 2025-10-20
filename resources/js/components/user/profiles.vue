@@ -4,6 +4,8 @@ import { useRoute, useRouter } from "vue-router";
 import { ref, onMounted } from "vue";
 // In Vue
 
+const router = useRouter();
+
 const profile = ref({
     user: {
         name: "",
@@ -114,6 +116,10 @@ onMounted(() => {
     fetchProfile();
     fetchPost();
 });
+
+const backToHome = () => {
+    router.push("/home");
+};
 </script>
 
 <template>
@@ -132,11 +138,12 @@ onMounted(() => {
                             <i class="fas fa-code mr-2"></i>DevFeed
                         </a>
                         <nav class="hidden md:flex items-center gap-6">
-                            <a
-                                href="feed.html"
+                            <button
+                                @click="backToHome"
                                 class="text-zinc-400 hover:text-white transition-colors"
-                                >Feed</a
                             >
+                                Feed
+                            </button>
                             <a
                                 href="#"
                                 class="text-zinc-400 hover:text-white transition-colors"

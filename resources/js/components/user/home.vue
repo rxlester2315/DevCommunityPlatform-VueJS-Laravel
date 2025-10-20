@@ -90,248 +90,6 @@ async function deletePost($postId) {
         });
     }
 }
-
-function formatTimeAgo(dateString) {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInSeconds = Math.floor((now - date) / 1000);
-
-    if (diffInSeconds < 60) return "Just Now";
-    if (diffInSeconds < 3600)
-        return `${Math.floor(diffInSeconds / 60)} minutes ago`;
-    if (diffInSeconds < 86400)
-        return `${Math.floor(diffInSeconds / 3600)} hours ago`;
-    if (diffInSeconds < 2592000)
-        return `${Math.floor(diffInSeconds / 86400)} days ago`;
-    return date.toLocaleDateString();
-}
-
-const userInitials = computed(() => {
-    if (!user.value) return "GU";
-
-    if (user.value.name) {
-        return user.value.name
-            .split(" ")
-            .map((n) => n[0])
-            .join("")
-            .toUpperCase()
-            .substring(0, 2);
-    }
-
-    return user.value.email
-        ? user.value.email.substring(0, 2).toUpperCase()
-        : "GU";
-});
-
-function openCreatePostModal() {
-    isCreatePostModalVisible.value = true;
-}
-
-// edit post post function modal
-
-function openEditModal(post) {
-    editingPost.value = post;
-    editPostContent.value = post.text_content;
-    editPostTitle.value = post.title_post;
-    editCategPost.value = post.category_post;
-    editImagePreview.value = post.image ? "/storage/" + post.image : null;
-    isEditModalVisible.value = true;
-}
-
-function closeEditModal() {
-    isEditModalVisible.value = false;
-    editingPost.value = null;
-    editPostContent.value = "";
-    editPostTitle.value = "";
-    editCategPost.value = "";
-    editImagePreview.value = null;
-    editSelectImage.value = null;
-}
-
-function handleEditImageSelect(event) {
-    const file = event.target.files[0];
-
-    if (file) {
-        if (!file.type.startsWith("image/")) {
-            Swal.fire({
-                icon: "error",
-                title: "Invalid File",
-                text: "Please Select an image file only",
-            });
-            return;
-        }
-
-        if (file.size > 5 * 1024 * 1024) {
-            Swal.fire({
-                icon: "error",
-                title: "File Too Large",
-                text: "Please Select an image smaller than 5MB",
-            });
-            return; // ✅ Add return statement
-        }
-
-        editSelectImage.value = file;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            editImagePreview.value = e.target.result;
-        };
-        reader.readAsDataURL(file);
-    }
-}
-
-function removeEditImage() {
-    editSelectImage.value = null;
-    editImagePreview.value = editingPost.value.image
-        ? "/storage/" + editingPost.value.image
-        : null;
-}
-
-async function UpdatePost() {
-    if (!editPostTitle.value || !editPostTitle.value.trim()) {
-        await Swal.fire({
-            icon: "error",
-            title: "Empty Title",
-            text: "Please add a title to your post",
-            timer: 3000,
-            showConfirmButton: true,
-        });
-        return;
-    }
-
-    if (!editCategPost.value) {
-        await Swal.fire({
-            icon: "error",
-            title: "Empty Category",
-            text: "Please select a category for your post",
-            timer: 3000,
-            showConfirmButton: true,
-        });
-        return;
-    }
-
-    const hasContent = editPostContent.value && editPostContent.value.trim();
-    const hasImage = editSelectImage.value || editingPost.value.image;
-
-    if (!hasContent && !hasImage) {
-        await Swal.fire({
-            icon: "error",
-            title: "Empty Post",
-            text: "Please add some content or an image to your post",
-            timer: 3000,
-            showConfirmButton: true,
-        });
-        return;
-    }
-
-    isLoading.value = true;
-
-    try {
-        const formData = new FormData();
-
-        formData.append("editPostContent", editPostContent.value.trim());
-        formData.append("title_post", editPostTitle.value.trim());
-        formData.append("editCategPost", editCategPost.value.trim());
-        formData.append("_method", "PUT");
-
-        if (editSelectImage.value) {
-            formData.append("image", editSelectImage.value);
-        }
-
-        const response = await axios.post(
-            `/api/posts/${editingPost.value.id}`,
-            formData,
-            {
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
-            }
-        );
-
-        await Swal.fire({
-            icon: "success",
-            title: "Update Success",
-            text: "Post Updated Successfully",
-            timer: 2000,
-            showConfirmButton: true,
-        });
-
-        await fetchPosts();
-        closeEditModal();
-    } catch (error) {
-        console.error("There something wrong please check", error);
-
-        let errorMessage = "Error Please try again";
-
-        if (error.response?.data?.errors) {
-            const errors = error.response.data.errors;
-            errorMessage = Object.values(errors).flat().join(", ");
-        } else if (error.response?.data?.message) {
-            errorMessage = error.response.data.message;
-        }
-
-        await Swal.fire({
-            icon: "error",
-            title: "Update Failed",
-            text: errorMessage,
-            timer: 3000,
-            showConfirmButton: true,
-        });
-    } finally {
-        isLoading.value = false;
-    }
-}
-
-function closeCreatePostModal() {
-    isCreatePostModalVisible.value = false;
-    resetForm();
-}
-
-function resetForm() {
-    postContent.value = "";
-    postTitle.value = "";
-    categoryPost.value = "";
-    selectedImage.value = null;
-    imagePreview.value = null;
-}
-
-function handleImageSelect(event) {
-    const file = event.target.files[0];
-
-    if (file) {
-        if (!file.type.startsWith("image/")) {
-            Swal.fire({
-                icon: "error",
-                title: "Invalid File",
-                text: "Please Select Image file Only",
-            });
-            return;
-        }
-
-        if (file.size > 5 * 1024 * 1024) {
-            Swal.fire({
-                icon: "error",
-                title: "File to Large",
-                text: "Please Select an image Smaller than 5MB",
-            });
-            return;
-        }
-
-        selectedImage.value = file;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            imagePreview.value = e.target.result;
-        };
-        reader.readAsDataURL(file);
-    }
-}
-
-function removeImage() {
-    selectedImage.value = null;
-    imagePreview.value = null;
-}
-
 async function submitPost() {
     if (!postTitle.value.trim()) {
         Swal.fire({
@@ -425,11 +183,282 @@ async function loadUserData() {
         } else {
             const response = await axios.get("/api/user");
             user.value = response.data;
+            console.log("User data from API:", response.data);
         }
     } catch (error) {
         console.error("Error loading user data:", error);
         user.value = null;
     }
+}
+
+async function UpdatePost() {
+    if (!editPostTitle.value || !editPostTitle.value.trim()) {
+        await Swal.fire({
+            icon: "error",
+            title: "Empty Title",
+            text: "Please add a title to your post",
+            timer: 3000,
+            showConfirmButton: true,
+        });
+        return;
+    }
+
+    if (!editCategPost.value) {
+        await Swal.fire({
+            icon: "error",
+            title: "Empty Category",
+            text: "Please select a category for your post",
+            timer: 3000,
+            showConfirmButton: true,
+        });
+        return;
+    }
+
+    const hasContent = editPostContent.value && editPostContent.value.trim();
+    const hasImage = editSelectImage.value || editingPost.value.image;
+
+    if (!hasContent && !hasImage) {
+        await Swal.fire({
+            icon: "error",
+            title: "Empty Post",
+            text: "Please add some content or an image to your post",
+            timer: 3000,
+            showConfirmButton: true,
+        });
+        return;
+    }
+
+    isLoading.value = true;
+
+    try {
+        const formData = new FormData();
+
+        formData.append("editPostContent", editPostContent.value.trim());
+        formData.append("title_post", editPostTitle.value.trim());
+        formData.append("editCategPost", editCategPost.value.trim());
+        formData.append("_method", "PUT");
+
+        if (editSelectImage.value) {
+            formData.append("image", editSelectImage.value);
+        }
+
+        const response = await axios.post(
+            `/api/posts/${editingPost.value.id}`,
+            formData,
+            {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                    "X-CSRF-TOKEN": document
+                        .querySelector('meta[name="csrf-token"]')
+                        .getAttribute("content"),
+                },
+            }
+        );
+
+        await Swal.fire({
+            icon: "success",
+            title: "Update Success",
+            text: "Post Updated Successfully",
+            timer: 2000,
+            showConfirmButton: true,
+        });
+
+        await fetchPosts();
+        closeEditModal();
+    } catch (error) {
+        console.error("There something wrong please check", error);
+
+        let errorMessage = "Error Please try again";
+
+        if (error.response?.data?.errors) {
+            const errors = error.response.data.errors;
+            errorMessage = Object.values(errors).flat().join(", ");
+        } else if (error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+        }
+
+        await Swal.fire({
+            icon: "error",
+            title: "Update Failed",
+            text: errorMessage,
+            timer: 3000,
+            showConfirmButton: true,
+        });
+    } finally {
+        isLoading.value = false;
+    }
+}
+
+function formatTimeAgo(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+
+    if (diffInSeconds < 60) return "Just Now";
+    if (diffInSeconds < 3600)
+        return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+    if (diffInSeconds < 86400)
+        return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+    if (diffInSeconds < 2592000)
+        return `${Math.floor(diffInSeconds / 86400)} days ago`;
+    return date.toLocaleDateString();
+}
+
+const userInitials = computed(() => {
+    if (!user.value) return "GU";
+
+    if (user.value.name) {
+        return user.value.name
+            .split(" ")
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase()
+            .substring(0, 2);
+    }
+
+    return user.value.email
+        ? user.value.email.substring(0, 2).toUpperCase()
+        : "GU";
+});
+
+const getPostUserInitials = (postUser) => {
+    if (!postUser) return "US";
+
+    if (postUser.name) {
+        return postUser.name
+            .split(" ")
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase()
+            .substring(0, 2);
+    }
+
+    // Use username if available
+    if (postUser.username) {
+        return postUser.username.substring(0, 2).toUpperCase();
+    }
+
+    // Use email if available
+    if (postUser.email) {
+        return postUser.email.substring(0, 2).toUpperCase();
+    }
+
+    // Default
+    return "US";
+};
+
+function openCreatePostModal() {
+    isCreatePostModalVisible.value = true;
+}
+
+// edit post post function modal
+
+function openEditModal(post) {
+    editingPost.value = post;
+    editPostContent.value = post.text_content;
+    editPostTitle.value = post.title_post;
+    editCategPost.value = post.category_post;
+    editImagePreview.value = post.image ? "/storage/" + post.image : null;
+    isEditModalVisible.value = true;
+}
+
+function closeEditModal() {
+    isEditModalVisible.value = false;
+    editingPost.value = null;
+    editPostContent.value = "";
+    editPostTitle.value = "";
+    editCategPost.value = "";
+    editImagePreview.value = null;
+    editSelectImage.value = null;
+}
+
+function handleEditImageSelect(event) {
+    const file = event.target.files[0];
+
+    if (file) {
+        if (!file.type.startsWith("image/")) {
+            Swal.fire({
+                icon: "error",
+                title: "Invalid File",
+                text: "Please Select an image file only",
+            });
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            Swal.fire({
+                icon: "error",
+                title: "File Too Large",
+                text: "Please Select an image smaller than 5MB",
+            });
+            return; // ✅ Add return statement
+        }
+
+        editSelectImage.value = file;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            editImagePreview.value = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function removeEditImage() {
+    editSelectImage.value = null;
+    editImagePreview.value = editingPost.value.image
+        ? "/storage/" + editingPost.value.image
+        : null;
+}
+
+function closeCreatePostModal() {
+    isCreatePostModalVisible.value = false;
+    resetForm();
+}
+
+function resetForm() {
+    postContent.value = "";
+    postTitle.value = "";
+    categoryPost.value = "";
+    selectedImage.value = null;
+    imagePreview.value = null;
+}
+
+function handleImageSelect(event) {
+    const file = event.target.files[0];
+
+    if (file) {
+        if (!file.type.startsWith("image/")) {
+            Swal.fire({
+                icon: "error",
+                title: "Invalid File",
+                text: "Please Select Image file Only",
+            });
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            Swal.fire({
+                icon: "error",
+                title: "File to Large",
+                text: "Please Select an image Smaller than 5MB",
+            });
+            return;
+        }
+
+        selectedImage.value = file;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            imagePreview.value = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function removeImage() {
+    selectedImage.value = null;
+    imagePreview.value = null;
 }
 
 const logout = async () => {
@@ -911,9 +940,23 @@ const goToProfile = () => {
                                 >
                                     <i class="fas fa-arrow-up text-xl"></i>
                                 </button>
-                                <span class="text-sm font-medium text-white">
-                                    {{ post.likes_count || 0 }}
-                                </span>
+
+                                <div
+                                    class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold bg-blue-500 overflow-hidden"
+                                >
+                                    <img
+                                        v-if="post.user?.profile?.photo_profile"
+                                        :src="
+                                            '/storage/' +
+                                            post.user.profile.photo_profile
+                                        "
+                                        :alt="post.user?.name"
+                                    />
+                                    <span v-else>{{
+                                        getPostUserInitials(post.user)
+                                    }}</span>
+                                </div>
+
                                 <button
                                     class="text-gray-400 hover:text-blue-500 transition-colors"
                                 >

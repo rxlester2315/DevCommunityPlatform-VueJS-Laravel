@@ -49,8 +49,10 @@ class HomeController extends Controller
 
 
     public function getPost(){
-        $posts = Post::with(['user' => function($query){
-            $query->select('id','name','email');
+        $posts = Post::with([
+            'user' => function($query){
+            $query->select('id','name','email')
+            ->with(['profile:id,user_id,photo_profile']);
         }])
         ->orderBy('created_at','desc')
         ->get();
@@ -264,17 +266,24 @@ public function getProfile(){
     ],200);
 }
 
-
-public function getCurrentUser(){
-
-    $user = auth()->user();
-
-    return response()->json([
-        'name' => $user->name,
-        'email'=> $user->email,
-    ]);
+public function getCurrentUser()
+{
+    $user = auth()->user()->load('profile');
     
-    }
+    return response()->json([
+        'id' => $user->id,
+        'name' => $user->name,
+        'email' => $user->email,
+        'username' => $user->username,
+        'photo_profile' => $user->profile->photo_profile,
+    ]);
+}
+
+
+
+
+
+
 
     public function historyPost()
 {

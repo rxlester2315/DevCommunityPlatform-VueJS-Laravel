@@ -22,15 +22,19 @@ class Post extends Model
           protected $table = 'post';
 
 
-   public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
-
+   
    public function getProfileAttribute()
     {
         return $this->user->profile;
     }
+
+    public function user(): BelongsTo
+{
+    return $this->belongsTo(User::class, 'user_id');
+}
+
+
+
 
     
 }
