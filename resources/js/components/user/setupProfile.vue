@@ -63,7 +63,7 @@ const SetupProfile = async () => {
 
         const response = await axios.post("/api/profile/setup", formData, {
             headers: {
-                "Content-Type": "multipart/form-data", // ✅ Fixed: removed space
+                "Content-Type": "multipart/form-data",
             },
         });
 

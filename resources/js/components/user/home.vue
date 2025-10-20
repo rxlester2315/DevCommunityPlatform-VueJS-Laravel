@@ -463,18 +463,8 @@ function removeImage() {
 
 const logout = async () => {
     try {
-        await axios.post("/api/logout");
-
-        await Swal.fire({
-            icon: "success",
-            title: "Logout Success",
-            text: "Logout Successfully",
-            timer: 2000,
-            showConfirmButton: true,
-        });
-
-        auth.clearAuth();
-        window.location.href = "/login";
+        // Use the auth module's logout method instead of duplicating logic
+        await auth.logout();
     } catch (error) {
         console.error("There's something wrong", error);
 
@@ -495,8 +485,9 @@ const logout = async () => {
             showConfirmButton: true,
         });
 
+        // Still clear auth and redirect even on error
         auth.clearAuth();
-        window.location.href = "/login";
+        window.location.replace("/login");
     }
 };
 

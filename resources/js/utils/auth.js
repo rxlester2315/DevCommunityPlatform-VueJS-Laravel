@@ -45,6 +45,7 @@ export const auth = {
 
     clearAuth() {
         sessionStorage.removeItem("user");
+        localStorage.removeItem("user");
     },
 
     async logout() {
