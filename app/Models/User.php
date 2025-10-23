@@ -23,9 +23,13 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
-        'username', // Make sure this is included
+        'username', 
         'email',
         'password',
+        'google_id',
+        'google_token',
+        'google_refresh_token',
+        'avatar',
         'status'
     ];
     protected $attributes = [
@@ -40,6 +44,8 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'google_token',
+        'google_refresh_token',
     ];
 
     /**
@@ -56,8 +62,28 @@ class User extends Authenticatable
     }
 
 
+public static function generateUsername($email)
+    {
+        $username = strstr($email, '@', true);
+        $username = preg_replace('/[^a-zA-Z0-9_]/', '', $username);
+        
+        // Ensure username is unique
+        $originalUsername = $username;
+        $counter = 1;
+        
+        while (static::where('username', $username)->exists()) {
+            $username = $originalUsername . $counter;
+            $counter++;
+        }
+        
+        return $username;
+    }
+
+
+
+
 // User Model
-public function profile(): HasOne
+    public function profile(): HasOne
 {
     return $this->hasOne(Profile::class, 'user_id');
 }

@@ -391,7 +391,7 @@ function handleEditImageSelect(event) {
                 title: "File Too Large",
                 text: "Please Select an image smaller than 5MB",
             });
-            return; // ✅ Add return statement
+            return;
         }
 
         editSelectImage.value = file;
@@ -463,7 +463,6 @@ function removeImage() {
 
 const logout = async () => {
     try {
-        // Use the auth module's logout method instead of duplicating logic
         await auth.logout();
     } catch (error) {
         console.error("There's something wrong", error);
@@ -485,7 +484,6 @@ const logout = async () => {
             showConfirmButton: true,
         });
 
-        // Still clear auth and redirect even on error
         auth.clearAuth();
         window.location.replace("/login");
     }

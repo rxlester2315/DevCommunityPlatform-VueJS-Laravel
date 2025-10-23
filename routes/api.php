@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\GoogleAuthController;
 
 
 
@@ -33,3 +34,14 @@ Route::get('/user-profile', [HomeController::class, 'getUserProfilePhoto'])->mid
 Route::post('/profile/setup', [HomeController::class, 'setupProfile'])->middleware('auth:sanctum');
 
 Route::get('/profile/post', [HomeController::class, 'historyPost'])->middleware('auth:sanctum');
+
+
+
+  // Google OAuth routes
+    Route::get('auths/google/redirect', [GoogleAuthController::class, 'redirect']);
+    Route::get('auths/google/callback', [GoogleAuthController::class, 'callback'])->middleware('web');
+
+     Route::middleware('auth:sanctum')->group(function () {
+        Route::post('auth/google/link', [GoogleAuthController::class, 'linkGoogleAccount']);
+        Route::post('auth/google/unlink', [GoogleAuthController::class, 'unlinkGoogleAccount']);
+    });

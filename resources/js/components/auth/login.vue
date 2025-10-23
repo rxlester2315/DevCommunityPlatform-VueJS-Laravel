@@ -1,11 +1,12 @@
 <script setup>
 import { useRouter } from "vue-router";
 import axios from "axios";
-import { computed, reactive, ref } from "vue";
+import { computed, reactive, ref, onMounted, onUnmounted } from "vue";
 import Swal from "sweetalert2";
 const router = useRouter();
 
 const loading = ref(false);
+const googleLoading = ref(false);
 
 const form = reactive({
     email: "",
@@ -151,6 +152,218 @@ const authenticate = async () => {
         loading.value = false;
     }
 };
+
+const handleGoogleLogin = async () => {
+    googleLoading.value = true;
+    errors.general = "";
+
+    try {
+        // this protection against CSRF attacks
+        await axios.get(
+            `${import.meta.env.VITE_APP_API_BASE_URL}/sanctum/csrf-cookie`
+        );
+        // Request Google URL from backend
+        const response = await axios.get(
+            `${
+                import.meta.env.VITE_APP_API_BASE_URL
+            }/api/auths/google/redirect`,
+            { withCredentials: true }
+        );
+
+        // if successs yung pop up / redirect_from back-end redirect function
+        if (response.data.success && response.data.redirect_url) {
+            // popup equals to openGooglePopup function since openGooglePopup  have parameter url
+            const popup = openGooglePopup(response.data.redirect_url);
+            // setup listener for popup messages
+            setupPopupListener(popup);
+        } else {
+            // error sa pagkuha ng url sa back-end
+            throw new Error("Failed to get Google auth URL");
+        }
+    } catch (error) {
+        googleLoading.value = false;
+        console.error("Google login initiation error:", error);
+
+        await showError(
+            "Google Login Failed",
+            getErrorMessage(error, "Failed to initiate Google login")
+        );
+    }
+};
+
+// this function is para mag open ng popup window ng google
+const openGooglePopup = (url) => {
+    const width = 500;
+    const height = 600;
+    const left = (window.screen.width - width) / 2;
+    const top = (window.screen.height - height) / 2;
+
+    return window.open(
+        url,
+        "google-auth",
+        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+    );
+};
+
+// this function is para mag handle ng message galing sa popup window whether success or error
+const handleMessage = (event) => {
+    console.log("📨 Received message:", event);
+
+    // if data type is GOOGLE_AUTH_SUCCESS call handleGoogleAuthSuccess function
+    if (event.data.type === "GOOGLE_AUTH_SUCCESS") {
+        console.log("✅ Google auth success via postMessage:", event.data.user);
+        handleGoogleAuthSuccess(event.data.user);
+    }
+    // if data type is GOOGLE_AUTH_ERROR call handleGoogleAuthError function
+    if (event.data.type === "GOOGLE_AUTH_ERROR") {
+        console.error("❌ Google auth error:", event.data.message);
+        handleGoogleAuthError(event.data.message);
+    }
+};
+
+// this function is para mag handle if ever success yung google auth and then i store natin yung data sa local storage same with normal login
+const handleGoogleAuthSuccess = async (userData) => {
+    try {
+        // making googleLoading false after success so no state of loading
+        googleLoading.value = false;
+
+        // Store yung user data same dun sa normal login wherein istore natin sa local storage
+        localStorage.setItem(
+            "user",
+            JSON.stringify({
+                id: userData.id,
+                name: userData.name,
+                email: userData.email,
+                username: userData.username,
+                avatar: userData.avatar,
+            })
+        );
+
+        await Swal.fire({
+            icon: "success",
+            title: "Success!",
+            text: "Google login successful!",
+            timer: 2000,
+            showConfirmButton: false,
+        });
+
+        router.push("/home");
+    } catch (error) {
+        console.error("Error handling Google auth success:", error);
+        handleGoogleAuthError("Failed to process login");
+    }
+};
+// eto is for function handling google auth error so if may error this will be called
+const handleGoogleAuthError = async (message) => {
+    googleLoading.value = false;
+    await Swal.fire({
+        icon: "error",
+        title: "Google Login Failed",
+        text: message,
+        showConfirmButton: true,
+    });
+};
+
+// this function is to setup the popup listener for message event and also check if popup is closed
+const setupPopupListener = (popup) => {
+    // if wala yung popup meaning na block yung popup
+    if (!popup) {
+        googleLoading.value = false;
+        showError("Popup Blocked", "Please allow popups for Google login");
+        return;
+    }
+
+    // Check if popup is closed every 500ms or 0.5 seconds
+    const popupCheck = setInterval(() => {
+        // if closed yung popup clear the interval and remove message listener
+        if (popup.closed) {
+            clearInterval(popupCheck);
+            // Popup closed by user
+            window.removeEventListener("message", handleMessage);
+            // if still loading ibig sabihin nag cancel yung user sa google login
+            if (googleLoading.value) {
+                googleLoading.value = false;
+                showError("Login Cancelled", "Google login was cancelled");
+            }
+        }
+    }, 500);
+
+    // setup message listener
+    window.addEventListener("message", handleMessage);
+};
+
+// eto is for checking local storage fallback in case postMessage fails
+const checkLocalStorageFallback = async () => {
+    console.log("🔍 Checking localStorage fallback...");
+
+    // Check if user data was stored in localStorage (Blade template fallback)
+    const userData = localStorage.getItem("google_auth_user");
+    const success = localStorage.getItem("google_auth_success");
+
+    if (success === "true" && userData) {
+        console.log("✅ Found user data in localStorage");
+        const user = JSON.parse(userData);
+
+        // Clean up
+        localStorage.removeItem("google_auth_success");
+        localStorage.removeItem("google_auth_user");
+
+        await handleGoogleAuthSuccess(user);
+    } else {
+        googleLoading.value = false;
+        console.log("❌ No user data found in localStorage");
+    }
+};
+
+const showError = async (title, message) => {
+    await Swal.fire({
+        icon: "error",
+        title: title,
+        text: message,
+        showConfirmButton: true,
+    });
+};
+
+const getErrorMessage = (error, defaultMessage) => {
+    if (error.response?.data?.message) {
+        return error.response.data.message;
+    }
+    if (error.response?.data?.errors) {
+        return Object.values(error.response.data.errors).flat().join(" ");
+    }
+    if (error.response?.status === 401) {
+        return "Invalid credentials";
+    }
+    return defaultMessage;
+};
+const checkAuthStatus = async () => {
+    try {
+        const response = await axios.get("/user", {
+            withCredentials: true,
+        });
+
+        if (response.data.success) {
+            googleLoading.value = false;
+            localStorage.setItem("user", JSON.stringify(response.data.user));
+
+            await Swal.fire({
+                icon: "success",
+                title: "Success!",
+                text: "Google login successful!",
+                timer: 2000,
+                showConfirmButton: false,
+            });
+
+            router.push("/home");
+        }
+    } catch (error) {
+        googleLoading.value = false;
+        console.error("Auth status check failed:", error);
+    }
+};
+onUnmounted(() => {
+    window.removeEventListener("message", handleMessage);
+});
 
 const register = () => {
     router.push("/registers");
@@ -323,15 +536,24 @@ const register = () => {
                             </svg>
                             <span class="text-sm font-medium">GitHub</span>
                         </button>
+
+                        <!-- Google Login Button -->
                         <button
                             type="button"
-                            class="flex items-center justify-center gap-2 px-4 py-2.5 bg-background border border-border rounded-lg hover:bg-zinc-900 transition-colors focus:outline-none focus:ring-2 focus:ring-accent"
+                            @click="handleGoogleLogin"
+                            :disabled="googleLoading"
+                            :class="[
+                                'flex items-center justify-center gap-2 px-4 py-2.5 bg-background border border-border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent',
+                                googleLoading
+                                    ? 'opacity-50 cursor-not-allowed'
+                                    : 'hover:bg-zinc-900',
+                            ]"
                         >
-                            <svg
-                                class="w-5 h-5"
-                                viewBox="0 0 24 24"
-                                fill="currentColor"
-                            >
+                            <div
+                                v-if="googleLoading"
+                                class="spinner-small"
+                            ></div>
+                            <svg v-else class="w-5 h-5" viewBox="0 0 24 24">
                                 <path
                                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                                     fill="#4285F4"
@@ -349,7 +571,9 @@ const register = () => {
                                     fill="#EA4335"
                                 />
                             </svg>
-                            <span class="text-sm font-medium">Google</span>
+                            <span class="text-sm font-medium">
+                                {{ googleLoading ? "Signing in..." : "Google" }}
+                            </span>
                         </button>
                     </div>
                 </form>
@@ -377,3 +601,23 @@ const register = () => {
         </div>
     </body>
 </template>
+
+<style scoped>
+.spinner-small {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #4285f4;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+</style>
