@@ -6,16 +6,13 @@ import "../js/javascriptcp";
 import Swal from "sweetalert2";
 import axios from "axios";
 
-axios.defaults.withCredentials = true; // this is for cookies and session when mag rerequest
 axios.defaults.withXSRFToken = true; // back-end or laravel protection
-axios.defaults.baseURL = "http://127.0.0.1:8000"; // axios call direct laravel back-end
-
+axios.defaults.baseURL = import.meta.env.VITE_APP_API_BASE_URL;
+axios.defaults.withCredentials = true; // Important for Sanctum
 axios.interceptors.request.use((config) => {
-    const token = document
-        .querySelector('meta[name="csrf-token"]')
-        ?.getAttribute("content");
+    const token = localStorage.getItem("auth_token");
     if (token) {
-        config.headers["X-CSRF-TOKEN"] = token;
+        config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
 });

@@ -97,8 +97,21 @@ const authenticate = async () => {
         });
 
         if (response.data.success) {
+            // STORE USER DATA AND TOKEN
             localStorage.setItem("user", JSON.stringify(response.data.user));
             localStorage.setItem("last_login", response.data.user.last_login);
+            localStorage.setItem("auth_token", response.data.token); // here nag store tayo ng token
+
+            // Verify the token works by making an API call
+            try {
+                const testResponse = await axios.get("/api/user");
+                console.log(
+                    "✅ Token verification successful:",
+                    testResponse.data
+                );
+            } catch (testError) {
+                console.error("❌ Token verification failed:", testError);
+            }
 
             await Swal.fire({
                 icon: "success",
@@ -109,6 +122,14 @@ const authenticate = async () => {
             });
 
             router.push("/home");
+        } else {
+            // Handle case where success is false but no error thrown
+            await Swal.fire({
+                icon: "error",
+                title: "Login Failed",
+                text: response.data.message || "Login failed",
+                showConfirmButton: true,
+            });
         }
     } catch (error) {
         console.error("Error Login Account ", error);
@@ -118,7 +139,6 @@ const authenticate = async () => {
         if (error.response?.data?.errors) {
             const serverErrors = error.response.data.errors;
 
-            // Map server errors to our form fields
             Object.keys(serverErrors).forEach((field) => {
                 if (errors.hasOwnProperty(field)) {
                     errors[field] = serverErrors[field][0];
@@ -158,10 +178,6 @@ const handleGoogleLogin = async () => {
     errors.general = "";
 
     try {
-        // this protection against CSRF attacks
-        await axios.get(
-            `${import.meta.env.VITE_APP_API_BASE_URL}/sanctum/csrf-cookie`
-        );
         // Request Google URL from backend
         const response = await axios.get(
             `${
@@ -239,6 +255,8 @@ const handleGoogleAuthSuccess = async (userData) => {
             })
         );
 
+        localStorage.setItem("auth_token", userData.token);
+
         await Swal.fire({
             icon: "success",
             title: "Success!",
@@ -307,6 +325,18 @@ const checkLocalStorageFallback = async () => {
         // Clean up
         localStorage.removeItem("google_auth_success");
         localStorage.removeItem("google_auth_user");
+
+        localStorage.setItem(
+            "user",
+            JSON.stringify({
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                username: user.username,
+                avatar: user.avatar,
+            })
+        );
+        localStorage.setItem("auth_token", user.token); // ← STORE TOKEN
 
         await handleGoogleAuthSuccess(user);
     } else {

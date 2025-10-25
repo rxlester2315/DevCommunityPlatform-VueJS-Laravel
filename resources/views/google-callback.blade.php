@@ -65,23 +65,36 @@
             <script>
             console.log("🔄 Sending user data to Vue app...");
 
+            // Get user data AND token from backend
             const userData = @json($user);
+            const token = '{{ $token }}'; // ← ADD THIS LINE
 
+            console.log("🔐 Token received:", token ? 'Yes' : 'No');
+
+            // here checking natin if we have window.opener to avoid errors in case the popup was not opened by another window
             if (window.opener) {
+                // then if true yung condition we use postMessage to send the user data back to the or yung orignal window 
                 try {
                     window.opener.postMessage({
                         type: 'GOOGLE_AUTH_SUCCESS',
-                        user: userData
+                        user: {
+                            ...userData, // Spread the existing user data
+                            token: token // ← ADD THE TOKEN HERE
+                        }
                     }, '*');
-                    console.log("✅ Message sent via postMessage");
+                    // yung * meaning is lahat ng origins ay pinapayagan tumangap but in more secure application dapat specific origin lang dapat ilagay dito
+                    console.log("✅ Message sent via postMessage with token");
                 } catch (error) {
                     console.error("❌ postMessage failed:", error);
                 }
             }
-
+            // then this is option lang to store data in localStorage in case postMessage fails or hindi supported yung browser
             localStorage.setItem('google_auth_success', 'true');
-            localStorage.setItem('google_auth_user', JSON.stringify(userData));
-            console.log("✅ Data stored in localStorage");
+            localStorage.setItem('google_auth_user', JSON.stringify({
+                ...userData, // Spread existing user data
+                token: token // ← ADD TOKEN HERE TOO
+            }));
+            console.log("✅ Data stored in localStorage with token");
 
             setTimeout(() => {
                 console.log("🔒 Closing popup...");

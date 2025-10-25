@@ -91,28 +91,31 @@ async function deletePost($postId) {
     }
 }
 async function submitPost() {
+    // Add return statements to stop execution
     if (!postTitle.value.trim()) {
-        Swal.fire({
+        await Swal.fire({
             icon: "error",
             title: "Empty Title",
             text: "Please add some content or an Title to your post",
             timer: 2000,
             showConfirmButton: true,
         });
+        return; // ← Add this
     }
 
     if (!categoryPost.value) {
-        Swal.fire({
+        await Swal.fire({
             icon: "error",
             title: "Empty Category",
             text: "Please add some content or an Category to your post",
             timer: 2000,
             showConfirmButton: true,
         });
+        return; // ← Add this
     }
 
     if (!postContent.value.trim() && !selectedImage.value) {
-        Swal.fire({
+        await Swal.fire({
             icon: "error",
             title: "Empty Post",
             text: "Please add some content or an image to your post",
@@ -134,6 +137,14 @@ async function submitPost() {
             formData.append("image", selectedImage.value);
         }
 
+        // Add debug logging
+        console.log("Submitting post with data:", {
+            title: postTitle.value.trim(),
+            category: categoryPost.value,
+            content: postContent.value.trim(),
+            hasImage: !!selectedImage.value,
+        });
+
         const response = await axios.post("/api/posts", formData, {
             headers: {
                 "Content-Type": "multipart/form-data",
@@ -149,10 +160,20 @@ async function submitPost() {
         });
 
         await fetchPosts();
-
         closeCreatePostModal();
     } catch (error) {
         console.error("Error Creating Post", error);
+
+        // Save error to localStorage before anything happens
+        localStorage.setItem(
+            "last_post_error",
+            JSON.stringify({
+                message: error.message,
+                response: error.response?.data,
+                status: error.response?.status,
+                timestamp: new Date().toISOString(),
+            })
+        );
 
         let errorMessage = "Failed To create post. Please try again";
 
@@ -168,11 +189,16 @@ async function submitPost() {
             title: "Failed to post",
             text: errorMessage,
         });
+
+        // Check if it's an authentication error
+        if (error.response?.status === 401 || error.response?.status === 419) {
+            console.log("Authentication error detected, redirecting to login");
+            router.push("/login");
+        }
     } finally {
         isLoading.value = false;
     }
 }
-
 async function loadUserData() {
     try {
         const userData = auth.getUser();

@@ -7,10 +7,6 @@ import userHome from "../components/user/home.vue";
 import userProfiles from "../components/user/profiles.vue";
 import { auth } from "../utils/auth";
 import SetupProfileS from "../components/user/setupProfile.vue";
-import axios from "axios";
-
-axios.defaults.withCredentials = true; //  sessions
-axios.defaults.withXSRFToken = true; // For CSRF protection
 
 const routes = [
     {

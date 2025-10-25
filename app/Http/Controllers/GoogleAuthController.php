@@ -52,6 +52,10 @@ class GoogleAuthController extends Controller
     }
 }
 
+
+
+
+
 public function callback(Request $request)
 {
     try {
@@ -88,10 +92,9 @@ public function callback(Request $request)
 }
 
 
-  public function callbackWeb(Request $request)
+public function callbackWeb(Request $request)
 {
     try {
-        // Check if we have success parameter from API callback
         if (!$request->get('success', true)) {
             return view('google-callback', [
                 'success' => false,
@@ -137,10 +140,8 @@ public function callback(Request $request)
                 'avatar' => $googleUser->getAvatar(),
             ]);
         }
-
-        // Log the user in (session-based)
-        Auth::login($user);
-        $request->session()->regenerate();
+           // same with custom login wherein we create token for the user and pass it to the browser
+         $token = $user->createToken('google-auth-token')->plainTextToken;
 
         // Record login activity
         $dt = Carbon::now('Asia/Manila');
@@ -154,7 +155,7 @@ public function callback(Request $request)
             'updated_at' => now(),
         ]);
 
-        // Return view with user data
+        // Return view with user data AND TOKEN
         return view('google-callback', [
             'success' => true,
             'user' => [
@@ -164,7 +165,8 @@ public function callback(Request $request)
                 'username' => $user->username,
                 'avatar' => $user->avatar,
                 'last_login' => $dt->toDateTimeString(),
-            ]
+            ],
+            'token' => $token // ← ADD THIS
         ]);
 
     } catch (\Exception $e) {
@@ -175,4 +177,6 @@ public function callback(Request $request)
         ]);
     }
 }
+
+
 }

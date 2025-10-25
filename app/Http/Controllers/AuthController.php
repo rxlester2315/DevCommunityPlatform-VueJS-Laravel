@@ -44,49 +44,51 @@ public function store(Request $request)
 }
 
 
- public function authenticate(Request $request)
-    {
-        $request->validate([
-            'email' => 'required|string|email',
-            'password' => 'required|string',
+public function authenticate(Request $request)
+{
+    $request->validate([
+        'email' => 'required|string|email',
+        'password' => 'required|string',
+    ]);
+
+    $credentials = $request->only('email', 'password');
+    
+    if (Auth::attempt($credentials)) {
+        $user = Auth::user();
+        $dt = Carbon::now('Asia/Manila');
+
+        // Record login activity
+        DB::table('activity_logs')->insert([
+            'name' => $user->name,
+            'email' => $user->email,
+            'description' => 'Has Login',
+            'status_activity' => 'Online',
+            'date_time' => $dt,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
-        $credentials = $request->only('email', 'password');
-        
-        if (Auth::attempt($credentials)) {
-            $user = Auth::user();
-            $dt = Carbon::now('Asia/Manila');
-
-            // Record login activity
-            DB::table('activity_logs')->insert([
-                'name' => $user->name,
-                'email' => $user->email,
-                'description' => 'Has Login',
-                'status_activity' => 'Online',
-                'date_time' => $dt,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            $request->session()->regenerate();
-
-            return response()->json([
-                'success' => true,
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'last_login' => $dt->toDateTimeString(),
-                ],
-                'message' => 'Login successful'
-            ]);
-        }
+        // since we are using JWT token  we need to create token that will store in localstorage and this token use for every request of the user
+        $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([
-            'success' => false,
-            'message' => 'Invalid credentials'
-        ], 401);
+            'success' => true,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'last_login' => $dt->toDateTimeString(),
+            ],
+            'token' => $token, // the token to be stored in localstorage
+            'message' => 'Login successful'
+        ]);
     }
+
+    return response()->json([
+        'success' => false,
+        'message' => 'Invalid credentials'
+    ], 401);
+}
 
 
 public function getUser(Request $request){

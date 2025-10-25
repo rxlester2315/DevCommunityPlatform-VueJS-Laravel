@@ -14,7 +14,7 @@ Route::get('/user', function (Request $request) {
 
 
 Route::post('/registers' , [AuthController::class, 'store']);
-Route::post('/login' , [AuthController::class, 'authenticate']);
+Route::post('/login' , [AuthController::class, 'authenticate'])->middleware('web');
 
 Route::middleware(['auth:sanctum'])->group(function() {
      Route::get('/user', [AuthController::class, 'getUser']);
@@ -40,8 +40,3 @@ Route::get('/profile/post', [HomeController::class, 'historyPost'])->middleware(
   // Google OAuth routes
     Route::get('auths/google/redirect', [GoogleAuthController::class, 'redirect']);
     Route::get('auths/google/callback', [GoogleAuthController::class, 'callback'])->middleware('web');
-
-     Route::middleware('auth:sanctum')->group(function () {
-        Route::post('auth/google/link', [GoogleAuthController::class, 'linkGoogleAccount']);
-        Route::post('auth/google/unlink', [GoogleAuthController::class, 'unlinkGoogleAccount']);
-    });
