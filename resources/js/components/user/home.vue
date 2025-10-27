@@ -10,7 +10,7 @@ const router = useRouter();
 const isLoadingPosts = ref(false);
 const isSettingVisibile = ref(false);
 
-// edit reactive variables
+const profilePic = ref(null);
 
 const isEditModalVisible = ref(false);
 const editingPost = ref(null);
@@ -31,6 +31,8 @@ const imagePreview = ref(null);
 const isLoading = ref(false);
 const user = ref(null);
 
+const total_comments = ref(0);
+
 async function fetchPosts() {
     isLoadingPosts.value = true;
 
@@ -49,6 +51,27 @@ async function fetchPosts() {
         });
     } finally {
         isLoadingPosts.value = false;
+    }
+}
+
+async function fetchProfilePic() {
+    try {
+        const response = await axios.get("/api/profile/photo");
+        profilePic.value = response.data.photo_profile;
+    } catch (error) {
+        console.error("Error fetching profile picture:", error);
+    }
+}
+
+async function totalComments(postId) {
+    try {
+        const response = await axios.get(`/api/post/comments`, {
+            params: { post_id: postId },
+        });
+        return response.data.total_comments || 0;
+    } catch (error) {
+        console.error("Error fetching total comments:", error);
+        return 0;
     }
 }
 
@@ -90,8 +113,8 @@ async function deletePost($postId) {
         });
     }
 }
+
 async function submitPost() {
-    // Add return statements to stop execution
     if (!postTitle.value.trim()) {
         await Swal.fire({
             icon: "error",
@@ -100,7 +123,7 @@ async function submitPost() {
             timer: 2000,
             showConfirmButton: true,
         });
-        return; // ← Add this
+        return;
     }
 
     if (!categoryPost.value) {
@@ -111,7 +134,7 @@ async function submitPost() {
             timer: 2000,
             showConfirmButton: true,
         });
-        return; // ← Add this
+        return;
     }
 
     if (!postContent.value.trim() && !selectedImage.value) {
@@ -137,7 +160,6 @@ async function submitPost() {
             formData.append("image", selectedImage.value);
         }
 
-        // Add debug logging
         console.log("Submitting post with data:", {
             title: postTitle.value.trim(),
             category: categoryPost.value,
@@ -164,7 +186,6 @@ async function submitPost() {
     } catch (error) {
         console.error("Error Creating Post", error);
 
-        // Save error to localStorage before anything happens
         localStorage.setItem(
             "last_post_error",
             JSON.stringify({
@@ -190,7 +211,6 @@ async function submitPost() {
             text: errorMessage,
         });
 
-        // Check if it's an authentication error
         if (error.response?.status === 401 || error.response?.status === 419) {
             console.log("Authentication error detected, redirecting to login");
             router.push("/login");
@@ -541,6 +561,7 @@ function handleEscape(e) {
 onMounted(() => {
     document.addEventListener("keydown", handleEscape);
     fetchPosts();
+    fetchProfilePic();
     loadUserData();
 });
 
@@ -550,6 +571,12 @@ onBeforeUnmount(() => {
 
 const goToProfile = () => {
     router.push("/profiles");
+};
+const goToComments = (postId) => {
+    router.push({
+        name: "user.comment",
+        params: { id: postId },
+    });
 };
 </script>
 
@@ -609,7 +636,19 @@ const goToProfile = () => {
                                 class="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-sm font-medium cursor-pointer"
                                 @click="toggleDropdown"
                             >
-                                {{ userInitials }}
+                                <img
+                                    v-if="profilePic"
+                                    :src="`/storage/${profilePic}`"
+                                    alt="User Profile Picture"
+                                    class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold bg-blue-500 overflow-hidden border-2 border-orange-500"
+                                />
+
+                                <div
+                                    v-else
+                                    class="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-sm font-medium"
+                                >
+                                    {{ userInitials }}
+                                </div>
                             </div>
 
                             <div
@@ -652,7 +691,15 @@ const goToProfile = () => {
                         class="bg-gray-900 border border-gray-800 rounded-lg p-4 mb-6"
                     >
                         <div class="flex items-center gap-3">
+                            <img
+                                v-if="profilePic"
+                                :src="`/storage/${profilePic}`"
+                                alt="User Profile Picture"
+                                class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold bg-blue-500 overflow-hidden border-2 border-orange-500"
+                            />
+
                             <div
+                                v-else
                                 class="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-sm font-medium"
                             >
                                 {{ userInitials }}
@@ -957,7 +1004,7 @@ const goToProfile = () => {
                                 </button>
 
                                 <div
-                                    class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold bg-blue-500 overflow-hidden"
+                                    class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold bg-blue-500 overflow-hidden border-2 border-white"
                                 >
                                     <img
                                         v-if="post.user?.profile?.photo_profile"
@@ -1172,8 +1219,6 @@ const goToProfile = () => {
                                                     </select>
                                                 </div>
 
-                                                <!-- Image Preview -->
-                                                <!-- Image Preview -->
                                                 <div
                                                     v-if="editImagePreview"
                                                     class="mt-4 relative"
@@ -1293,16 +1338,32 @@ const goToProfile = () => {
                                     class="flex items-center gap-4 text-sm text-gray-400"
                                 >
                                     <button
+                                        @click="goToComments(post.id)"
                                         class="flex items-center gap-2 hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors"
                                     >
                                         <i class="fas fa-comment"></i>
                                         <span
                                             >{{
-                                                post.comments_count || 0
+                                                post.comments_count
                                             }}
                                             comments</span
                                         >
                                     </button>
+
+                                    <div
+                                        v-if="expandedPostId === post.id"
+                                        class="mt-4"
+                                    >
+                                        <CommentComponent
+                                            :postId="post.id"
+                                            :initialComments="
+                                                post.comments || []
+                                            "
+                                            @comment-added="
+                                                fetchPostComments(post.id)
+                                            "
+                                        />
+                                    </div>
                                     <button
                                         class="flex items-center gap-2 hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors"
                                     >

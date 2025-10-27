@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use App\Models\Post;
 use App\Models\Profile;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Comment;
+use Illuminate\Support\Facades\Auth;
 
 
 class HomeController extends Controller
@@ -54,6 +56,7 @@ class HomeController extends Controller
             $query->select('id','name','email')
             ->with(['profile:id,user_id,photo_profile']);
         }])
+        ->withCount('comments') 
         ->orderBy('created_at','desc')
         ->get();
 
@@ -268,17 +271,37 @@ public function getProfile(){
 
 public function getCurrentUser()
 {
-    $user = auth()->user()->load('profile');
-    
-    return response()->json([
-        'id' => $user->id,
-        'name' => $user->name,
-        'email' => $user->email,
-        'username' => $user->username,
-        'photo_profile' => $user->profile->photo_profile,
-    ]);
-}
+    try {
+        $user = auth()->user();
+        
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not authenticated'
+            ], 401);
+        }
+        
+        // checking if may profile yung user 
+        $photoProfile = $user->profile ? $user->profile->photo_profile : null;
 
+        return response()->json([
+            'success' => true,
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'username' => $user->username,
+            'photo_profile' => $photoProfile, // This can be null
+            'has_profile' => !is_null($user->profile) // Useful for frontend
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('getCurrentUser error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Server error: ' . $e->getMessage()
+        ], 500);
+    }
+}
 
 
 
@@ -305,5 +328,110 @@ public function getCurrentUser()
 }
 
 
+
+public function viewPost($id){
+
+    // so behind to this query is when i click the post i will obtain the the id of the post and also the user who created the post
+    $post = Post::with(['user.profile'])->findOrFail($id);
+
+    return response()->json([
+
+        'message' => 'Post Found Successfully',
+        'post' => $post,
+    ] , 200);
+}
+
+public function getUserProfilePhoto()
+{
+    $user = auth()->user();
+
+    if (!$user) {
+        return response()->json([
+            'success' => false,
+            'message' => 'User not authenticated'
+        ], 401);
+    }
+
+    $profile = $user->profile;
+
+    if (!$profile || !$profile->photo_profile) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Profile photo not found'
+        ], 404);
+    }
+
+    return response()->json([
+        'success' => true,
+        'photo_profile' => $profile->photo_profile
+    ]);
+
+
+}
+
+
+public function makeComment(Request $request) 
+{
+    $validated = $request->validate([
+        'post_id' => 'required|exists:post,id',
+        'content' => 'required|string|max:2000',
+        'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+    ]);
+
+    // Check if post exists
+    $post = Post::find($validated['post_id']);
+    if (!$post) {
+        return response()->json([
+            'message' => 'Post not found'
+        ], 404);
+    }
+
+    $user = auth()->user();
+    
+    $imagePath = null;
+    if ($request->hasFile('image')) {
+        $imagePath = $request->file('image')->store('comments', 'public');
+    }
+
+    $comment = Comment::create([
+        'post_id' => $validated['post_id'], 
+        'user_id' => $user->id,
+        'content' => $validated['content'],
+        'image' => $imagePath,
+    ]);
+
+    $comment->load('user.profile');
+
+    return response()->json([
+        'message' => 'Comment created successfully',
+        'comment' => $comment
+    ], 201);
+}
+
+public function getComments()
+{
+    $postId = request()->input('post_id');
+
+    $comments = Comment::with(['user.profile'])
+                ->where('post_id', $postId)
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+    return response()->json([
+        'comments' => $comments
+    ], 200);
+
+
+}
+
+public function totalComments($postId)
+{
+    $totalComments = Comment::where('post_id', $postId)->count();
+
+    return response()->json([
+        'total_comments' => $totalComments
+    ], 200);
+
+}
 
 }

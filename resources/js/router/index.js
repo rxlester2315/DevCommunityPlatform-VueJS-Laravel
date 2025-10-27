@@ -7,6 +7,8 @@ import userHome from "../components/user/home.vue";
 import userProfiles from "../components/user/profiles.vue";
 import { auth } from "../utils/auth";
 import SetupProfileS from "../components/user/setupProfile.vue";
+import postComments from "../components/user/comment.vue";
+import axios from "axios";
 
 const routes = [
     {
@@ -38,7 +40,7 @@ const routes = [
         path: "/setupprofile",
         name: "user.setupprofile",
         component: SetupProfileS,
-        meta: { requiresAuth: true },
+        meta: { requiresAuth: true, requiresProfile: false },
     },
     {
         path: "/home",
@@ -46,6 +48,14 @@ const routes = [
         component: userHome,
         meta: { requiresAuth: true },
     },
+
+    {
+        path: "/comments/:id",
+        name: "user.comment",
+        component: postComments,
+        meta: { requiresAuth: true, requiresProfile: true },
+    },
+
     {
         path: "/:pathMatch(.*)",
         name: "notFound",

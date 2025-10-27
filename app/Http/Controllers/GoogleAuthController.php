@@ -143,7 +143,6 @@ public function callbackWeb(Request $request)
            // same with custom login wherein we create token for the user and pass it to the browser
          $token = $user->createToken('google-auth-token')->plainTextToken;
 
-        // Record login activity
         $dt = Carbon::now('Asia/Manila');
         DB::table('activity_logs')->insert([
             'name' => $user->name,
@@ -155,7 +154,6 @@ public function callbackWeb(Request $request)
             'updated_at' => now(),
         ]);
 
-        // Return view with user data AND TOKEN
         return view('google-callback', [
             'success' => true,
             'user' => [
@@ -166,7 +164,7 @@ public function callbackWeb(Request $request)
                 'avatar' => $user->avatar,
                 'last_login' => $dt->toDateTimeString(),
             ],
-            'token' => $token // ← ADD THIS
+            'token' => $token
         ]);
 
     } catch (\Exception $e) {

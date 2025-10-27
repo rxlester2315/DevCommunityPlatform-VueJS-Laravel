@@ -33,10 +33,16 @@ Route::get('/user-profile', [HomeController::class, 'getUserProfilePhoto'])->mid
 
 Route::post('/profile/setup', [HomeController::class, 'setupProfile'])->middleware('auth:sanctum');
 
+Route::get('/post/view/{id}', [HomeController::class, 'viewPost'])->middleware('auth:sanctum');
+
 Route::get('/profile/post', [HomeController::class, 'historyPost'])->middleware('auth:sanctum');
 
+Route::get('/comment/profile', [HomeController::class, 'profilepicComment'])->middleware('auth:sanctum');
 
-
+Route::get('profile/photo', [HomeController::class, 'getUserProfilePhoto'])->middleware('auth:sanctum');
+Route::post('/post/submit-comment', [HomeController::class, 'makeComment'])->middleware('auth:sanctum');
+Route::get('/post/comments', [HomeController::class, 'getComments'])->middleware('auth:sanctum');
+Route::get('/post/{id}/total-comments', [HomeController::class, 'totalComments'])->middleware('auth:sanctum');
   // Google OAuth routes
     Route::get('auths/google/redirect', [GoogleAuthController::class, 'redirect']);
     Route::get('auths/google/callback', [GoogleAuthController::class, 'callback'])->middleware('web');

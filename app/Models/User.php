@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use App\Models\Profile;
 
 use Laravel\Sanctum\HasApiTokens;
 
@@ -92,4 +93,14 @@ public function posts()
 {
     return $this->hasMany(Post::class, 'user_id');
 }
+ public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+public function comments()
+{
+    return $this->hasMany(Comment::class, 'user_id');
+}
+
 }
