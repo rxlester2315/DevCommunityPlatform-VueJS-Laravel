@@ -8,6 +8,8 @@ use App\Models\Profile;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Comment;
 use Illuminate\Support\Facades\Auth;
+use App\Events\UserNotification;
+
 
 
 class HomeController extends Controller
@@ -379,7 +381,7 @@ public function makeComment(Request $request)
     ]);
 
     // Check if post exists
-    $post = Post::find($validated['post_id']);
+    $post = Post::with('user')->find($validated['post_id']); 
     if (!$post) {
         return response()->json([
             'message' => 'Post not found'
@@ -401,6 +403,8 @@ public function makeComment(Request $request)
     ]);
 
     $comment->load('user.profile');
+    event(new UserNotification($comment, $post, $user)); // ✅ Correct
+
 
     return response()->json([
         'message' => 'Comment created successfully',

@@ -1,7 +1,7 @@
 <script setup>
 import axios from "axios";
 import { useRoute, useRouter } from "vue-router";
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onBeforeUnmount, computed } from "vue";
 // In Vue
 
 const router = useRouter();
@@ -25,6 +25,7 @@ const posts = ref([]);
 const loading = ref(true);
 
 const isLoadingPosts = ref(true);
+const isCreatePostModalVisible = ref(false);
 
 const fetchProfile = async () => {
     try {
@@ -36,6 +37,10 @@ const fetchProfile = async () => {
         loading.value = false;
     }
 };
+function toggleDropdown() {
+    isDropdownVisible.value = !isDropdownVisible.value;
+}
+const isDropdownVisible = ref(false);
 
 const fetchPost = async () => {
     try {
@@ -102,6 +107,15 @@ const getWebsite = (website) => {
     }
 };
 
+function handleEscape(e) {
+    if (e.key === "Escape") {
+        isDropdownVisible.value = false;
+        if (isCreatePostModalVisible.value) {
+            closeCreatePostModal();
+        }
+    }
+}
+
 const getGithub = (githublink) => {
     if (!githublink) return "";
 
@@ -115,6 +129,10 @@ const getGithub = (githublink) => {
 onMounted(() => {
     fetchProfile();
     fetchPost();
+});
+
+onBeforeUnmount(() => {
+    document.removeEventListener("keydown", handleEscape);
 });
 
 const backToHome = () => {
@@ -158,18 +176,59 @@ const backToHome = () => {
                     </div>
                     <div class="flex items-center gap-4">
                         <button
-                            class="p-2 text-zinc-400 hover:text-white transition-colors"
+                            class="relative text-gray-400 hover:text-white transition-colors"
                         >
-                            <i class="fas fa-bell"></i>
+                            <i class="fas fa-bell text-xl"></i>
+                            <span
+                                class="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full"
+                            ></span>
                         </button>
-                        <button
-                            class="p-2 text-zinc-400 hover:text-white transition-colors"
-                        >
-                            <i class="fas fa-envelope"></i>
-                        </button>
-                        <div
-                            class="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-pink-500"
-                        ></div>
+                        <div class="relative inline-block text-left">
+                            <div
+                                class="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-sm font-medium cursor-pointer"
+                                @click="toggleDropdown"
+                            >
+                                <img
+                                    v-if="profile.photo_profile"
+                                    :src="`/storage/${profile.photo_profile}`"
+                                    alt="User Profile Picture"
+                                    class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold bg-blue-500 overflow-hidden border-2 border-orange-500"
+                                />
+
+                                <div
+                                    v-else
+                                    class="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-sm font-medium"
+                                >
+                                    {{ userInitials }}
+                                </div>
+                            </div>
+
+                            <div
+                                v-show="isDropdownVisible"
+                                class="absolute left-30 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg"
+                            >
+                                <div class="py-1">
+                                    <a
+                                        @click="goToProfile"
+                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                                    >
+                                        Profile
+                                    </a>
+
+                                    <a
+                                        href="#"
+                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                        >Settings</a
+                                    >
+                                    <a
+                                        href="#"
+                                        @click="logout"
+                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                        >Logout</a
+                                    >
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
