@@ -46,3 +46,10 @@ Route::get('/post/{id}/total-comments', [HomeController::class, 'totalComments']
   // Google OAuth routes
     Route::get('auths/google/redirect', [GoogleAuthController::class, 'redirect']);
     Route::get('auths/google/callback', [GoogleAuthController::class, 'callback'])->middleware('web');
+
+
+
+Route::post('/posts/{post}/karma/upvote', [HomeController::class, 'upvote'])->middleware('auth:sanctum');
+Route::post('/posts/{post}/karma/downvote', [HomeController::class, 'downvote'])->middleware('auth:sanctum');
+Route::post('/posts/{post}/karma/remove', [HomeController::class, 'removeVote'])->middleware('auth:sanctum');
+Route::get('/posts/{post}/karma', [HomeController::class, 'show']);

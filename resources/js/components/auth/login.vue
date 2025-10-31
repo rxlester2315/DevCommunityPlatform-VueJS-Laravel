@@ -100,7 +100,7 @@ const authenticate = async () => {
             // STORE USER DATA AND TOKEN
             localStorage.setItem("user", JSON.stringify(response.data.user));
             localStorage.setItem("last_login", response.data.user.last_login);
-            localStorage.setItem("auth_token", response.data.token); // here nag store tayo ng token
+            localStorage.setItem("token", response.data.token); // here nag store tayo ng token
 
             // Verify the token works by making an API call
             try {
@@ -139,6 +139,7 @@ const authenticate = async () => {
         if (error.response?.data?.errors) {
             const serverErrors = error.response.data.errors;
 
+            // Map server errors to our form fields
             Object.keys(serverErrors).forEach((field) => {
                 if (errors.hasOwnProperty(field)) {
                     errors[field] = serverErrors[field][0];
@@ -255,7 +256,8 @@ const handleGoogleAuthSuccess = async (userData) => {
             })
         );
 
-        localStorage.setItem("auth_token", userData.token);
+        localStorage.setItem("token", userData.token);
+        console.log("✅ Token stored:", userData.token ? "Yes" : "No");
 
         await Swal.fire({
             icon: "success",
@@ -336,7 +338,7 @@ const checkLocalStorageFallback = async () => {
                 avatar: user.avatar,
             })
         );
-        localStorage.setItem("auth_token", user.token); // ← STORE TOKEN
+        localStorage.setItem("token", user.token); // ← STORE TOKEN
 
         await handleGoogleAuthSuccess(user);
     } else {

@@ -10,7 +10,7 @@ axios.defaults.withXSRFToken = true; // back-end or laravel protection
 axios.defaults.baseURL = import.meta.env.VITE_APP_API_BASE_URL;
 axios.defaults.withCredentials = true; // Important for Sanctum
 axios.interceptors.request.use((config) => {
-    const token = localStorage.getItem("auth_token");
+    const token = localStorage.getItem("token");
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }

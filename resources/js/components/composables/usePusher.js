@@ -12,6 +12,20 @@ export function usePusher() {
 
     // function wherein pusher connection with logged in user id is established
     const initPusher = (userId) => {
+        console.log("🔧 INIT PUSHER DEBUG:");
+        console.log("🔧 User ID received:", userId);
+        console.log("🔧 User ID type:", typeof userId);
+        console.log("🔧 Token exists:", !!localStorage.getItem("token"));
+
+        // Check if userId is valid
+        if (!userId || userId === "undefined" || userId === "null") {
+            console.error("❌ Invalid user ID for Pusher:", userId);
+            return;
+        }
+
+        userId = String(userId).trim();
+        console.log("🔧 User ID after conversion:", userId);
+
         // here checking lang tayo if pusher is already connected, if so disconnect first bago create ng new connection
         if (pusher.value) {
             pusher.value.disconnect();

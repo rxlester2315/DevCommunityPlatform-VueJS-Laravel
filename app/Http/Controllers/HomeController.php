@@ -7,6 +7,8 @@ use App\Models\Post;
 use App\Models\Profile;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Comment;
+use App\Models\Karma;
+
 use Illuminate\Support\Facades\Auth;
 use App\Events\UserNotification;
 
@@ -52,21 +54,38 @@ class HomeController extends Controller
     }
 
 
-    public function getPost(){
-        $posts = Post::with([
-            'user' => function($query){
+   public function getPost(){
+    $posts = Post::with([
+        'user' => function($query){
             $query->select('id','name','email')
             ->with(['profile:id,user_id,photo_profile']);
-        }])
-        ->withCount('comments') 
-        ->orderBy('created_at','desc')
-        ->get();
+        }
+    ])
+    ->withCount('comments') 
+    //  ADD KARMA COUNTS
+    ->withCount(['karma as upvotes_count' => function($query) {
+        $query->where('type', 'up');
+    }])
+    ->withCount(['karma as downvotes_count' => function($query) {
+        $query->where('type', 'down');
+    }])
+    //  ADD USER'S CURRENT VOTE
+    ->with(['karma' => function($query) {
+        $query->where('user_id', auth()->id());
+    }])
+    ->orderBy('created_at','desc')
+    ->get()
+    // CALCULATE KARMA SCORE AND USER VOTE
+    ->map(function($post) {
+        $post->karma_score = $post->upvotes_count - $post->downvotes_count;
+        $post->user_vote = $post->karma->first()?->type;
+        return $post;
+    });
 
-
-        return response()->json([
-            'posts' => $posts
-        ]);
-    }
+    return response()->json([
+        'posts' => $posts
+    ]);
+}
 
 
     public function deletePost($id){
@@ -126,7 +145,6 @@ public function update(Request $request, $id)
 {
     $post = Post::findOrFail($id);
     
-    // Validate with the exact field names from your frontend form
     $validated = $request->validate([
         'editPostContent' => 'required|string|max:5000',
         'title_post' => 'required|string|max:255',
@@ -428,6 +446,9 @@ public function getComments()
 
 }
 
+
+
+
 public function totalComments($postId)
 {
     $totalComments = Comment::where('post_id', $postId)->count();
@@ -437,5 +458,84 @@ public function totalComments($postId)
     ], 200);
 
 }
+
+
+public function upvote(Post $post)
+{
+    $user = Auth::user();
+    
+    if (!$user) {
+        return response()->json([
+            'error' => 'Unauthorized',
+            'message' => 'Please login to vote'
+        ], 401);
+    }
+
+    $currentVote = $post->userVote($user);
+    $action = 'upvoted'; // Default action
+
+    if ($currentVote === Karma::UPVOTE) {
+        $post->removeVote($user);
+        $action = 'removed';
+        $newVote = null;
+    } else {
+        $post->upvote($user);
+        $action = 'upvoted';
+        $newVote = 'up';
+    }
+
+    return response()->json([
+        'karma_score' => $post->karmaScore(),
+        'user_vote' => $newVote, // Use the new vote state
+        'action' => $action
+    ]);
+}
+
+public function downvote(Post $post)
+{
+    $user = Auth::user();
+    
+    if (!$user) {
+        return response()->json([
+            'error' => 'Unauthorized',
+            'message' => 'Please login to vote'
+        ], 401);
+    }
+
+    $currentVote = $post->userVote($user);
+    $action = 'downvoted'; // Default action
+
+    if ($currentVote === Karma::DOWNVOTE) {
+        $post->removeVote($user);
+        $action = 'removed';
+        $newVote = null;
+    } else {
+        $post->downvote($user);
+        $action = 'downvoted';
+        $newVote = 'down';
+    }
+
+    return response()->json([
+        'karma_score' => $post->karmaScore(),
+        'user_vote' => $newVote,
+        'action' => $action
+    ]);
+}
+
+
+
+
+
+ public function show(Post $post)
+    {
+        return response()->json([
+            'karma_score' => $post->karmaScore(),
+            'upvotes' => $post->upvotes()->count(),
+            'downvotes' => $post->downvotes()->count(),
+            'user_vote' => $post->userVote(auth()->user())
+        ]);
+    }
+
+    
 
 }

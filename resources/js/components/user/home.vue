@@ -5,6 +5,7 @@ import { useRoute, useRouter } from "vue-router";
 import Swal from "sweetalert2";
 import { auth } from "../../utils/auth";
 import "remixicon/fonts/remixicon.css";
+import KarmaVoter from "../user/KarmaVoter.vue";
 
 const router = useRouter();
 const isLoadingPosts = ref(false);
@@ -32,6 +33,16 @@ const isLoading = ref(false);
 const user = ref(null);
 
 const total_comments = ref(0);
+
+function onPostVoted(voteData) {
+    const postIndex = posts.value.findIndex(
+        (post) => post.id === voteData.postId
+    );
+    if (postIndex !== -1) {
+        posts.value[postIndex].karma_score = voteData.score;
+        posts.value[postIndex].user_vote = voteData.userVote;
+    }
+}
 
 async function fetchPosts() {
     isLoadingPosts.value = true;
@@ -995,14 +1006,8 @@ const goToComments = (postId) => {
                         class="bg-gray-900 border border-gray-800 rounded-lg mb-4 hover:border-gray-700 transition-colors"
                     >
                         <div class="flex gap-4 p-4">
-                            <!-- Vote Section -->
-                            <div class="flex flex-col items-center gap-1">
-                                <button
-                                    class="text-gray-400 hover:text-orange-500 transition-colors"
-                                >
-                                    <i class="fas fa-arrow-up text-xl"></i>
-                                </button>
-
+                            <!-- User Avatar on Left -->
+                            <div class="flex flex-col items-center">
                                 <div
                                     class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold bg-blue-500 overflow-hidden border-2 border-white"
                                 >
@@ -1013,33 +1018,26 @@ const goToComments = (postId) => {
                                             post.user.profile.photo_profile
                                         "
                                         :alt="post.user?.name"
+                                        class="w-full h-full object-cover"
                                     />
                                     <span v-else>{{
                                         getPostUserInitials(post.user)
                                     }}</span>
                                 </div>
-
-                                <button
-                                    class="text-gray-400 hover:text-blue-500 transition-colors"
-                                >
-                                    <i class="fas fa-arrow-down text-xl"></i>
-                                </button>
                             </div>
 
                             <!-- Content -->
                             <div class="flex-1">
+                                <!-- Post header -->
                                 <div
                                     class="flex items-center gap-2 text-sm text-gray-400 mb-2"
                                 >
-                                    <!-- Category -->
                                     <span
                                         v-if="post.category_post"
                                         class="px-2 py-0.5 bg-orange-500/10 text-orange-500 rounded text-xs font-medium"
                                     >
                                         {{ post.category_post }}
                                     </span>
-
-                                    <!-- Posted by -->
                                     <span>
                                         Posted by
                                         <span
@@ -1053,16 +1051,14 @@ const goToComments = (postId) => {
                                             }}
                                         </span>
                                     </span>
-
                                     <span>•</span>
-
-                                    <!-- Time ago -->
                                     <span>{{
                                         formatTimeAgo(
                                             post.published_at || post.created_at
                                         )
                                     }}</span>
 
+                                    <!-- Edit/Delete buttons -->
                                     <button
                                         v-if="user && post.user_id === user.id"
                                         @click="deletePost(post.id)"
@@ -1073,7 +1069,6 @@ const goToComments = (postId) => {
                                             class="ri-delete-bin-line text-[18px] group-hover:scale-110"
                                         ></i>
                                     </button>
-                                    <!-- Edit Button -->
                                     <button
                                         v-if="user && post.user_id === user.id"
                                         @click="openEditModal(post)"
@@ -1084,232 +1079,6 @@ const goToComments = (postId) => {
                                             class="ri-edit-line text-[18px] group-hover:scale-110"
                                         ></i>
                                     </button>
-
-                                    <!-- Edit Post Modal -->
-                                    <div
-                                        v-if="isEditModalVisible"
-                                        class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop"
-                                        @click="closeEditModal"
-                                    >
-                                        <div
-                                            class="absolute inset-0 bg-black bg-opacity-50"
-                                        ></div>
-
-                                        <div
-                                            class="relative bg-gray-800 rounded-lg w-full max-w-2xl mx-4 shadow-xl"
-                                            @click.stop
-                                        >
-                                            <!-- Modal Header -->
-                                            <div
-                                                class="flex items-center justify-between p-4 border-b border-gray-700"
-                                            >
-                                                <h3
-                                                    class="text-lg font-semibold text-white"
-                                                >
-                                                    Edit Post
-                                                </h3>
-                                                <button
-                                                    @click="closeEditModal"
-                                                    class="text-gray-400 hover:text-white transition-colors"
-                                                >
-                                                    <svg
-                                                        class="w-6 h-6"
-                                                        fill="none"
-                                                        stroke="currentColor"
-                                                        viewBox="0 0 24 24"
-                                                    >
-                                                        <path
-                                                            stroke-linecap="round"
-                                                            stroke-linejoin="round"
-                                                            stroke-width="2"
-                                                            d="M6 18L18 6M6 6l12 12"
-                                                        ></path>
-                                                    </svg>
-                                                </button>
-                                            </div>
-
-                                            <!-- Modal Body - Remove the inner p-4 since form has it -->
-                                            <form
-                                                @submit.prevent="UpdatePost"
-                                                class="p-4"
-                                            >
-                                                <!-- User Info -->
-                                                <div
-                                                    class="flex items-center mb-4"
-                                                >
-                                                    <div
-                                                        class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold mr-3"
-                                                    >
-                                                        {{ userInitials }}
-                                                    </div>
-                                                    <div>
-                                                        <p
-                                                            class="text-white font-semibold"
-                                                        >
-                                                            {{
-                                                                user?.name ||
-                                                                user?.email
-                                                            }}
-                                                        </p>
-                                                        <p
-                                                            class="text-white text-[12px] border border-gray-600 bg-gray-600 text-center rounded-[5px]"
-                                                        >
-                                                            <i
-                                                                class="ri-earth-line mr-1"
-                                                            ></i
-                                                            >Public
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                <!-- Title Post -->
-                                                <input
-                                                    type="text"
-                                                    placeholder="Title Post"
-                                                    v-model="editPostTitle"
-                                                    class="w-full h-10 mb-5 bg-gray-900 border border-gray-700 rounded-lg p-4 text-white placeholder-gray-400 resize-none focus:outline-none focus:border-blue-500"
-                                                />
-
-                                                <!-- Content Textarea -->
-                                                <textarea
-                                                    v-model="editPostContent"
-                                                    placeholder="What's on your mind?"
-                                                    class="w-full h-32 bg-gray-900 border border-gray-700 rounded-lg p-4 text-white placeholder-gray-400 resize-none focus:outline-none focus:border-blue-500"
-                                                ></textarea>
-
-                                                <!-- Dropdown Category -->
-                                                <div class="mb-4">
-                                                    <select
-                                                        v-model="editCategPost"
-                                                        class="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500"
-                                                    >
-                                                        <option
-                                                            value=""
-                                                            disabled
-                                                            selected
-                                                        >
-                                                            Select Category
-                                                        </option>
-                                                        <option
-                                                            value="Technology"
-                                                        >
-                                                            Technology
-                                                        </option>
-                                                        <option
-                                                            value="Programming"
-                                                        >
-                                                            Programming
-                                                        </option>
-                                                        <option
-                                                            value="Web Development"
-                                                        >
-                                                            Web Development
-                                                        </option>
-                                                        <option
-                                                            value="Mobile Development"
-                                                        >
-                                                            Mobile Development
-                                                        </option>
-                                                        <option value="Design">
-                                                            Design
-                                                        </option>
-                                                        <option value="Other">
-                                                            Other
-                                                        </option>
-                                                    </select>
-                                                </div>
-
-                                                <div
-                                                    v-if="editImagePreview"
-                                                    class="mt-4 relative"
-                                                >
-                                                    <img
-                                                        :src="editImagePreview"
-                                                        alt="Preview"
-                                                        class="w-full h-64 object-cover rounded-lg"
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        @click="removeEditImage"
-                                                        class="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full p-1 text-white hover:bg-opacity-70 transition-colors"
-                                                    >
-                                                        <svg
-                                                            class="w-5 h-5"
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            viewBox="0 0 24 24"
-                                                        >
-                                                            <path
-                                                                stroke-linecap="round"
-                                                                stroke-linejoin="round"
-                                                                stroke-width="2"
-                                                                d="M6 18L18 6M6 6l12 12"
-                                                            ></path>
-                                                        </svg>
-                                                    </button>
-                                                </div>
-
-                                                <!-- Add to your post -->
-                                                <div
-                                                    class="mt-4 p-3 border border-gray-700 rounded-lg"
-                                                >
-                                                    <p
-                                                        class="text-gray-400 text-sm mb-2"
-                                                    >
-                                                        Add to your post
-                                                    </p>
-                                                    <div
-                                                        class="flex items-center space-x-4"
-                                                    >
-                                                        <label
-                                                            class="flex items-center text-gray-400 hover:text-white cursor-pointer transition-colors"
-                                                        >
-                                                            <input
-                                                                type="file"
-                                                                accept="image/*"
-                                                                @change="
-                                                                    handleEditImageSelect
-                                                                "
-                                                                class="hidden"
-                                                            />
-                                                            <svg
-                                                                class="w-6 h-6 mr-2"
-                                                                fill="none"
-                                                                stroke="currentColor"
-                                                                viewBox="0 0 24 24"
-                                                            >
-                                                                <path
-                                                                    stroke-linecap="round"
-                                                                    stroke-linejoin="round"
-                                                                    stroke-width="2"
-                                                                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                                                                ></path>
-                                                            </svg>
-                                                            <span>Photo</span>
-                                                        </label>
-                                                    </div>
-                                                </div>
-
-                                                <!-- Modal Footer with Submit Button -->
-                                                <div
-                                                    class="mt-4 pt-4 border-t border-gray-700"
-                                                >
-                                                    <button
-                                                        type="submit"
-                                                        :disabled="isLoading"
-                                                        class="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-colors"
-                                                    >
-                                                        <span v-if="isLoading"
-                                                            >Updating...</span
-                                                        >
-                                                        <span v-else
-                                                            >Update Post</span
-                                                        >
-                                                    </button>
-                                                </div>
-                                            </form>
-                                        </div>
-                                    </div>
                                 </div>
 
                                 <!-- Post Title -->
@@ -1333,10 +1102,18 @@ const goToComments = (postId) => {
                                     />
                                 </div>
 
-                                <!-- Action Buttons -->
                                 <div
                                     class="flex items-center gap-4 text-sm text-gray-400"
                                 >
+                                    <!-- Karma Voting -->
+                                    <KarmaVoter
+                                        :post-id="post.id"
+                                        :initial-karma="post.karma_score || 0"
+                                        :initial-user-vote="post.user_vote"
+                                        @voted="onPostVoted"
+                                    />
+
+                                    <!-- Comments -->
                                     <button
                                         @click="goToComments(post.id)"
                                         class="flex items-center gap-2 hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors"
@@ -1350,32 +1127,35 @@ const goToComments = (postId) => {
                                         >
                                     </button>
 
-                                    <div
-                                        v-if="expandedPostId === post.id"
-                                        class="mt-4"
-                                    >
-                                        <CommentComponent
-                                            :postId="post.id"
-                                            :initialComments="
-                                                post.comments || []
-                                            "
-                                            @comment-added="
-                                                fetchPostComments(post.id)
-                                            "
-                                        />
-                                    </div>
+                                    <!-- Share -->
                                     <button
                                         class="flex items-center gap-2 hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors"
                                     >
                                         <i class="fas fa-share"></i>
                                         <span>Share</span>
                                     </button>
+
+                                    <!-- Save -->
                                     <button
                                         class="flex items-center gap-2 hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors"
                                     >
                                         <i class="fas fa-bookmark"></i>
                                         <span>Save</span>
                                     </button>
+                                </div>
+
+                                <!-- Comments Section -->
+                                <div
+                                    v-if="expandedPostId === post.id"
+                                    class="mt-4"
+                                >
+                                    <CommentComponent
+                                        :postId="post.id"
+                                        :initialComments="post.comments || []"
+                                        @comment-added="
+                                            fetchPostComments(post.id)
+                                        "
+                                    />
                                 </div>
                             </div>
                         </div>

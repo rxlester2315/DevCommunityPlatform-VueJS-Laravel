@@ -62,6 +62,11 @@ class User extends Authenticatable
         ];
     }
 
+      public function karma()
+    {
+        return $this->hasMany(Karma::class);
+    }
+
 
 public static function generateUsername($email)
     {

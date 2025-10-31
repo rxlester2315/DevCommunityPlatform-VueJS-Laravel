@@ -39,4 +39,61 @@ public function comments()
 
     
 }
+
+ public function karma()
+    {
+        return $this->morphMany(Karma::class, 'karmaable');
+    }
+
+
+   public function upvotes()
+    {
+        return $this->karma()->where('type', Karma::UPVOTE);
+    }
+     public function downvotes()
+    {
+        return $this->karma()->where('type', Karma::DOWNVOTE);
+    }
+
+     public function karmaScore()
+    {
+        return $this->upvotes()->count() - $this->downvotes()->count();
+    }
+
+      public function userVote(User $user = null)
+    {
+        if (!$user) return null;
+        
+        $vote = $this->karma()->where('user_id', $user->id)->first();
+        return $vote ? $vote->type : null;
+    }
+
+     public function upvote(User $user)
+    {
+        $this->updateVote($user, Karma::UPVOTE);
+    }
+
+     public function downvote(User $user)
+    {
+        $this->updateVote($user, Karma::DOWNVOTE);
+    }
+
+    public function removeVote(User $user)
+    {
+        $this->karma()->where('user_id', $user->id)->delete();
+    }
+
+    protected function updateVote(User $user, $type)
+    {
+        $this->karma()->updateOrCreate(
+            ['user_id' => $user->id],
+            ['type' => $type]
+        );
+    }
+
+
+   
+
+
+
 }

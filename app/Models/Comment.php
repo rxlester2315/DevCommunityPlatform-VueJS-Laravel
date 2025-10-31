@@ -26,5 +26,16 @@ class Comment extends Model
         return $this->belongsTo(Post::class);
     }
 
+       public function karma()
+    {
+        return $this->morphMany(Karma::class, 'karmaable');
+    }
+
+    public function karmaScore()
+    {
+        return $this->karma()->where('type', Karma::UPVOTE)->count() 
+             - $this->karma()->where('type', Karma::DOWNVOTE)->count();
+    }
+
     
 }
