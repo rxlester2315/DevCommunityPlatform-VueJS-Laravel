@@ -12,15 +12,40 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
+// API ROUTE  / AUTH CONTROLLER
 
+
+// ROUTE FOR AUTH  LOGIN 
 Route::post('/registers' , [AuthController::class, 'store']);
+
+// AUTHENTICATE / OR LOGIN 
 Route::post('/login' , [AuthController::class, 'authenticate'])->middleware('web');
 
+// WE ARE GETTING THE USERS
 Route::middleware(['auth:sanctum'])->group(function() {
      Route::get('/user', [AuthController::class, 'getUser']);
 
 });
+
+// LOGOUT OUT FUNCTION 
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth');
+
+
+
+
+
+
+
+// API ROUTE / HOME CONTROLLER 
+
+
+
+
+
+
+
+
+
 Route::post('/posts', [HomeController::class, 'createPost'])->middleware('auth:sanctum');
 Route::get('/posts', [HomeController::class, 'getPost']);
 Route::delete('/posts/{id}', [HomeController::class, 'deletePost'])->middleware('auth:sanctum');
@@ -29,7 +54,6 @@ Route::put('/posts/{id}', [HomeController::class, 'update'])->middleware('auth:s
 Route::get('/profile/check', [HomeController::class, 'checkProfile'])->middleware('auth:sanctum');
 Route::get('/profile/get', [HomeController::class, 'getProfile'])->middleware('auth:sanctum');
 Route::get('/profile/user', [HomeController::class, 'getCurrentUser'])->middleware('auth:sanctum');
-Route::get('/user-profile', [HomeController::class, 'getUserProfilePhoto'])->middleware('auth:sanctum');
 
 Route::post('/profile/setup', [HomeController::class, 'setupProfile'])->middleware('auth:sanctum');
 
