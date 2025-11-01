@@ -77,7 +77,8 @@ class HomeController extends Controller
     ->get()
     // CALCULATE KARMA SCORE AND USER VOTE
     ->map(function($post) {
-        $post->karma_score = $post->upvotes_count - $post->downvotes_count;
+        $post->karma_score = $post->upvotes_count; 
+
         $post->user_vote = $post->karma->first()?->type;
         return $post;
     });
@@ -461,9 +462,11 @@ public function totalComments($postId)
 
 
 public function upvote(Post $post)
-{
+{    
+    // make sure na naka login is user
     $user = Auth::user();
-    
+
+    // if hinde return to login
     if (!$user) {
         return response()->json([
             'error' => 'Unauthorized',
@@ -472,7 +475,7 @@ public function upvote(Post $post)
     }
 
     $currentVote = $post->userVote($user);
-    $action = 'upvoted'; // Default action
+    $action = 'upvoted'; 
 
     if ($currentVote === Karma::UPVOTE) {
         $post->removeVote($user);
@@ -484,47 +487,54 @@ public function upvote(Post $post)
         $newVote = 'up';
     }
 
+        $finalScore = $post->upvotes()->count();
+
+
     return response()->json([
-        'karma_score' => $post->karmaScore(),
-        'user_vote' => $newVote, // Use the new vote state
+        'karma_score' =>$finalScore ,
+        'user_vote' => $newVote, 
         'action' => $action
     ]);
 }
 
+
 public function downvote(Post $post)
 {
+    // make sure na naka login is user
     $user = Auth::user();
-    
+    // if hinde return to login
     if (!$user) {
         return response()->json([
             'error' => 'Unauthorized',
             'message' => 'Please login to vote'
         ], 401);
     }
-
+    // nag initial na tayo ng variable na current vote we use userVote function sa post inside of it the user vote
     $currentVote = $post->userVote($user);
-    $action = 'downvoted'; // Default action
-
+    //current action natin is down vote if this function run
+    $action = 'downvoted'; 
+    // if click ulit yung down vote it will make the action from downvoted to removed and then set new vote to null
     if ($currentVote === Karma::DOWNVOTE) {
         $post->removeVote($user);
         $action = 'removed';
         $newVote = null;
+        // else if hinde naman remain lang yun
     } else {
         $post->downvote($user);
         $action = 'downvoted';
         $newVote = 'down';
     }
+   // upvotes total 
+        $finalScore = $post->upvotes()->count();
 
+
+// same logic lang to sa upvote
     return response()->json([
-        'karma_score' => $post->karmaScore(),
+        'karma_score' => $finalScore,
         'user_vote' => $newVote,
         'action' => $action
     ]);
 }
-
-
-
-
 
  public function show(Post $post)
     {

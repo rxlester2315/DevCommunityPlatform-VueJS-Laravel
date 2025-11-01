@@ -57,7 +57,7 @@ public function comments()
 
      public function karmaScore()
     {
-        return $this->upvotes()->count() - $this->downvotes()->count();
+     return $this->upvotes()->count();
     }
 
       public function userVote(User $user = null)

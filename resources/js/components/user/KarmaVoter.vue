@@ -7,7 +7,7 @@
                 'vote-btn upvote transition-colors duration-200 p-1 rounded',
                 {
                     'text-orange-500 bg-orange-500/10': userVote === 'up',
-                    'text-gray-400 hover:text-orange-500 hover:bg-gray-800':
+                    'text-gray-400 hover:text-white hover:bg-orange-500':
                         userVote !== 'up',
                 },
             ]"
@@ -36,7 +36,7 @@
                 'vote-btn downvote transition-colors duration-200 p-1 rounded',
                 {
                     'text-blue-500 bg-blue-500/10': userVote === 'down',
-                    'text-gray-400 hover:text-blue-500 hover:bg-gray-800':
+                    'text-gray-400 hover:text-white hover:bg-blue-500':
                         userVote !== 'down',
                 },
             ]"
