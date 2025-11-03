@@ -18,8 +18,12 @@ class GoogleAuthController extends Controller
     public function redirect()
 {
     try {
+        //Generates a random string called $state — used to 
+        // verify that the request came from your app.
         $state = Str::random(40);
         
+        //Saves that $state in the database 
+        // (oauth_states table) for later validation.
         DB::table('oauth_states')->insert([
             'state' => $state,
             'created_at' => now(),
@@ -55,27 +59,34 @@ class GoogleAuthController extends Controller
 
 
 
-
+// after that yung google mag send you back or mag send back to app
 public function callback(Request $request)
 {
     try {
         $state = $request->input('state');
         $code = $request->input('code');
-        
+        //Google sends you back a state and a code.
+
+        //You check if the state exists in your DB 
+        // and is still valid (not expired).
         $storedState = DB::table('oauth_states')
             ->where('state', $state)
             ->where('created_at', '>', now()->subMinutes(10))
             ->first();
 
+
+        // If it’s invalid → reject it (“Invalid state parameter”).
         if (!$storedState) {
             return redirect()->route('google.callback.web', [
                 'success' => false,
                 'message' => 'Invalid state parameter'
             ]);
         }
-
+        // If valid → delete that state record (for security).
         DB::table('oauth_states')->where('state', $state)->delete();
 
+
+       // Redirect to another route: google.callback.web, with the code and state.
         return redirect()->route('google.callback.web', [
             'state' => $state,
             'code' => $code,
@@ -92,9 +103,11 @@ public function callback(Request $request)
 }
 
 
+
 public function callbackWeb(Request $request)
 {
     try {
+        // Checks if success is true and state/code exist.
         if (!$request->get('success', true)) {
             return view('google-callback', [
                 'success' => false,
@@ -112,15 +125,22 @@ public function callbackWeb(Request $request)
             ]);
         }
 
+
+       // Calls Google again (Socialite::driver('google')->stateless()->user()) 
+       // to get the user’s data (name, email, Google ID, avatar, etc.).
         $googleUser = Socialite::driver('google')
             ->stateless()
             ->user();
-
+      
         $user = User::where('google_id', $googleUser->getId())
                     ->orWhere('email', $googleUser->getEmail())
                     ->first();
 
+          // Finds the user in your database:
+       // If found → updates Google tokens.
+    // If not found → creates a new user in your users table.
         if (!$user) {
+            // Creates a new API token for that user ($user->createToken()).
             $user = User::create([
                 'name' => $googleUser->getName(),
                 'email' => $googleUser->getEmail(),
@@ -143,6 +163,7 @@ public function callbackWeb(Request $request)
            // same with custom login wherein we create token for the user and pass it to the browser
          $token = $user->createToken('google-auth-token')->plainTextToken;
 
+        // Logs the activity in your activity_logs table.
         $dt = Carbon::now('Asia/Manila');
         DB::table('activity_logs')->insert([
             'name' => $user->name,

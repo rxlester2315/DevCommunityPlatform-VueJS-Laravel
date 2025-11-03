@@ -69,25 +69,37 @@ const router = createRouter({
     routes,
 });
 
-// Add this after your routes
+//router.beforeEach() is a function that runs before every page navigation (route change) in your Vue app.
+// this like gate before enting to certain gate so more on guard siya/
+//It’s like a security gate that checks if the user is allowed to go to a certain route (page).
 
-// this like gate before enting to certain gate so more on guard siya
+// to → where you’re going (destination route)
+
+// from → where you came from
+
+// next() → a function you call to allow or block navigation
+
 router.beforeEach(async (to, from, next) => {
     console.log("Navigation guard triggered");
     console.log("To:", to.path, "Requires auth:", to.meta.requiresAuth);
 
-    // if you page or yung route is may requireAuth or check if naka login or what it will store it
+    // if yung page or yung route is may requireAuth
+    // If the route (in router/index.js) has meta: { requiresAuth: true },
+    // it means the page is protected
     if (to.meta.requiresAuth) {
         const user = localStorage.getItem("user");
         console.log("User found in localStorage:", user);
 
         // then here it check if naka login ba si user i naka login may console log
+        //      if a user is saved in localStorage (or sometimes sessionStorage).
+        //     If yes → proceed.
+        //    If not → redirect to /login.
         if (user) {
             try {
                 const userData = JSON.parse(user);
                 console.log("Parsed user data:", userData);
 
-                // so if this user tries to click the button na profile it check muna if may nag exist sya na data sa profile table or mag send ng response sa back-end to check if meron siyang info
+                //It check if my profile siya before mag proceed
                 if (to.meta.requiresProfile) {
                     console.log("Checking profile existence...");
                     try {

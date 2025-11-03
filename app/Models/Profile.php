@@ -25,9 +25,17 @@ class Profile extends Model
 
     ];
 
+    // Explicit table name for this model. Use this when the table name
+    // does not follow Laravel's default pluralization (e.g. 'profiles').
+    // Keeps intent clear and prevents accidental mismatches with DB names.
     protected $table = 'profile';
 
-   public function user(): BelongsTo
+   /**
+     * The owner of this profile.
+     * Relationship: a profile belongs to a single User (author/owner).
+     * Returns a BelongsTo relation to the User model.
+     */
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }

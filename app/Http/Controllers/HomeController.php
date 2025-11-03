@@ -11,6 +11,9 @@ use App\Models\Karma;
 
 use Illuminate\Support\Facades\Auth;
 use App\Events\UserNotification;
+use App\Events\PostDownVoted;
+use App\Events\PostUpvoted;
+
 
 
 
@@ -587,6 +590,7 @@ public function upvote(Post $post)
         $post->upvote($user);
         $action = 'upvoted';
         $newVote = 'up';
+        event(new PostUpvoted($post, $user, $post->user));
     }
 
         $finalScore = $post->upvotes()->count();
@@ -625,6 +629,7 @@ public function downvote(Post $post)
         $post->downvote($user);
         $action = 'downvoted';
         $newVote = 'down';
+        event(new PostDownvoted($post, $user, $post->user));
     }
    // upvotes total 
         $finalScore = $post->upvotes()->count();

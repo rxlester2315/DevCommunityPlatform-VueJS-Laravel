@@ -12,6 +12,7 @@ export function usePusher() {
 
     // function wherein pusher connection with logged in user id is established
     const initPusher = (userId) => {
+        // this for debug purposes lang
         console.log("🔧 INIT PUSHER DEBUG:");
         console.log("🔧 User ID received:", userId);
         console.log("🔧 User ID type:", typeof userId);
@@ -55,7 +56,13 @@ export function usePusher() {
             handleNewComment(data);
         });
 
+        // ADD THIS: Listen for vote notifications
+        channel.bind("new.vote", (data) => {
+            handleNewVote(data);
+        });
+
         // Connection events
+        // this debug purposes only
         pusher.value.connection.bind("connected", () => {
             isConnected.value = true;
             console.log("✅ Pusher connected");
@@ -283,6 +290,246 @@ export function usePusher() {
                 document.head.appendChild(style);
             }
         }
+    };
+
+    const handleNewVote = (data) => {
+        notifications.value.unshift({
+            id: Date.now(),
+            type: "vote",
+            data: data,
+            read: false,
+            timestamp: new Date(),
+        });
+
+        // Then call the showVoteNotification function to display the notification UI
+        showVoteNotification(data);
+    };
+
+    const showVoteNotification = (data) => {
+        if (typeof Swal !== "undefined") {
+            // Determine the icon and message based on vote type
+            const voteConfig = {
+                upvote: {
+                    icon: "👍",
+                    action: "upvoted",
+                    color: "#1877f2",
+                    gradient:
+                        "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                },
+                downvote: {
+                    icon: "👎",
+                    action: "downvoted",
+                    color: "#ff4444",
+                    gradient:
+                        "linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)",
+                },
+            };
+
+            const config = voteConfig[data.vote_type] || voteConfig.upvote;
+
+            // Create custom HTML for vote notification
+            const notificationHTML = `
+            <div class="facebook-toast">
+                <div class="toast-header">
+                    <div class="user-avatar" style="background: ${
+                        config.gradient
+                    }">
+                        ${data.voter_name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .toUpperCase()}
+                    </div>
+                    <div class="toast-content">
+                        <div class="user-name">${data.voter_name}</div>
+                        <div class="action-text">${
+                            config.action
+                        } your post</div>
+                        <div class="post-title">"${data.post_title}"</div>
+                        <div class="timestamp">${data.created_at}</div>
+                    </div>
+                    <div class="vote-icon">${config.icon}</div>
+                </div>
+            </div>
+        `;
+
+            Swal.fire({
+                html: notificationHTML,
+                showConfirmButton: true,
+                showCancelButton: true,
+                confirmButtonText: "<span>View</span>",
+                cancelButtonText: "<span>✕ Dismiss</span>",
+                toast: true,
+                position: "top-end",
+                width: 420,
+                padding: "0",
+                background: "#ffffff",
+                customClass: {
+                    popup: "modern-facebook-toast",
+                    confirmButton: "modern-confirm-btn",
+                    cancelButton: "modern-cancel-btn",
+                    actions: "modern-actions-container",
+                },
+                timer: 8000, // Slightly shorter timer for votes
+                showCloseButton: true,
+                closeButtonHtml: `
+                <div class="close-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                    </svg>
+                </div>
+            `,
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = `/comments/${data.post_id}`;
+                }
+            });
+
+            // ADD THESE STYLES to your existing CSS or update the style block
+            if (!document.querySelector("#facebook-toast-styles")) {
+                const style = document.createElement("style");
+                style.id = "facebook-toast-styles";
+                style.textContent = `
+                .modern-facebook-toast {
+                    border-radius: 12px;
+                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
+                    border: 1px solid #e4e6ea;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                }
+                
+                .facebook-toast {
+                    padding: 16px;
+                }
+                
+                .toast-header {
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 12px;
+                    margin-bottom: 12px;
+                }
+                
+                .user-avatar {
+                    width: 44px;
+                    height: 44px;
+                    border-radius: 50%;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    font-weight: 700;
+                    font-size: 15px;
+                    flex-shrink: 0;
+                }
+                
+                .toast-content {
+                    flex: 1;
+                    min-width: 0;
+                }
+                
+                .user-name {
+                    font-weight: 700;
+                    color: #1c1e21;
+                    font-size: 15px;
+                    margin-bottom: 2px;
+                }
+                
+                .action-text {
+                    color: #65676b;
+                    font-size: 14px;
+                    margin-bottom: 2px;
+                }
+                
+                .post-title {
+                    color: #1c1e21;
+                    font-size: 13px;
+                    font-weight: 500;
+                    margin: 4px 0;
+                    font-style: italic;
+                }
+                
+                .timestamp {
+                    color: #8a8d91;
+                    font-size: 12px;
+                }
+                
+                .vote-icon {
+                    font-size: 20px;
+                    flex-shrink: 0;
+                }
+                
+                .modern-actions-container {
+                    margin: 0;
+                    padding: 12px 16px;
+                    border-top: 1px solid #e4e6ea;
+                    gap: 8px;
+                }
+                
+                .modern-confirm-btn, .modern-cancel-btn {
+                    flex: 1;
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    font-weight: 600;
+                    font-size: 13px;
+                    border: none;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                
+                .modern-confirm-btn {
+                    background: #1877f2;
+                    color: white;
+                }
+                
+                .modern-confirm-btn:hover {
+                    background: #166fe5;
+                }
+                
+                .modern-cancel-btn {
+                    background: #e4e6ea;
+                    color: #1c1e21;
+                }
+                
+                .modern-cancel-btn:hover {
+                    background: #d8dadf;
+                }
+                
+                .close-btn {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #65676b;
+                    transition: background-color 0.2s;
+                    cursor: pointer;
+                }
+                
+                .close-btn:hover {
+                    background: #f0f2f5;
+                }
+                
+                .swal2-timer-progress-bar {
+                    background: #1877f2;
+                }
+            `;
+                document.head.appendChild(style);
+            }
+        }
+    };
+
+    // ... rest of your existing code ...
+
+    return {
+        pusher,
+        isConnected,
+        notifications,
+        initPusher,
+        disconnect,
+        markAsRead,
+        // Optional: Export the new function if you want to use it elsewhere
+        showVoteNotification,
     };
 
     // Auto cleanup

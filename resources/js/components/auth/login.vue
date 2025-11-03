@@ -3,23 +3,23 @@ import { useRouter } from "vue-router";
 import axios from "axios";
 import { computed, reactive, ref, onMounted, onUnmounted } from "vue";
 import Swal from "sweetalert2";
-const router = useRouter();
 
+// Reactive Variables / Reactive State
+const router = useRouter();
 const loading = ref(false);
 const googleLoading = ref(false);
-
 const form = reactive({
     email: "",
     password: "",
     remember: false,
 });
-
 const errors = reactive({
     email: "",
     password: "",
     general: "",
 });
 
+// javascript Plain Object
 const validationRules = {
     email: [
         {

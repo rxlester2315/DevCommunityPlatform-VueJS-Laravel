@@ -62,13 +62,19 @@ class User extends Authenticatable
         ];
     }
 
-      public function karma()
+    /**
+     * Karma (votes) cast by this user.
+     * Relationship: a user can have many Karma records (one per vote).
+     */
+    public function karma()
     {
         return $this->hasMany(Karma::class);
     }
 
 
-public static function generateUsername($email)
+    // Generate a clean, unique username from an email address.
+    // Strips non-alphanumeric characters and appends a counter if needed.
+    public static function generateUsername($email)
     {
         $username = strstr($email, '@', true);
         $username = preg_replace('/[^a-zA-Z0-9_]/', '', $username);
@@ -88,24 +94,39 @@ public static function generateUsername($email)
 
 
 
-// User Model
+    /**
+     * The user's public profile.
+     * Relationship: a user has one Profile (1:1).
+     */
     public function profile(): HasOne
-{
-    return $this->hasOne(Profile::class, 'user_id');
-}
+    {
+        return $this->hasOne(Profile::class, 'user_id');
+    }
 
-public function posts()
-{
-    return $this->hasMany(Post::class, 'user_id');
-}
- public function user()
+    /**
+     * Posts authored by this user.
+     * Relationship: a user has many Posts.
+     */
+    public function posts()
+    {
+        return $this->hasMany(Post::class, 'user_id');
+    }
+    /**
+     * Self-referential relation placeholder.
+     * (Present in the file but may be unused — typically used for parent/owner references.)
+     */
+    public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-public function comments()
-{
-    return $this->hasMany(Comment::class, 'user_id');
-}
+    /**
+     * Comments written by the user.
+     * Relationship: a user has many Comments.
+     */
+    public function comments()
+    {
+        return $this->hasMany(Comment::class, 'user_id');
+    }
 
 }

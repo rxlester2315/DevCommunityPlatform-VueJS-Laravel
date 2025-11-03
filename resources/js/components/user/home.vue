@@ -7,12 +7,11 @@ import { auth } from "../../utils/auth";
 import "remixicon/fonts/remixicon.css";
 import KarmaVoter from "../user/KarmaVoter.vue";
 
+// Reactive Variables / Reactive State
 const router = useRouter();
 const isLoadingPosts = ref(false);
 const isSettingVisibile = ref(false);
-
 const profilePic = ref(null);
-
 const isEditModalVisible = ref(false);
 const editingPost = ref(null);
 const editPostContent = ref("");
@@ -20,7 +19,6 @@ const editPostTitle = ref("");
 const editCategPost = ref("");
 const editSelectImage = ref(null);
 const editImagePreview = ref(null);
-
 const isDropdownVisible = ref(false);
 const isCreatePostModalVisible = ref(false);
 const postContent = ref("");
@@ -31,7 +29,6 @@ const selectedImage = ref(null);
 const imagePreview = ref(null);
 const isLoading = ref(false);
 const user = ref(null);
-
 const total_comments = ref(0);
 
 function onPostVoted(voteData) {
@@ -347,9 +344,23 @@ async function UpdatePost() {
 }
 
 function formatTimeAgo(dateString) {
+    // the date/time in
     const date = new Date(dateString);
+    // current time in the user device auto detect
     const now = new Date();
-    const diffInSeconds = Math.floor((now - date) / 1000);
+
+    // so for this  converting a UTC date
+    // (e.g. from your database or API) into your local timezone .
+    const localDate = new Date(
+        date.getTime() - date.getTimezoneOffset() * 60000
+    );
+    // For TimezoneOffset since nasa manila tayo UTC+8 A head tayo ng 8 hours sa utc
+    // yung sa 60000 naman since converts minutes → milliseconds because JavaScript Date
+    // timestamps work in milliseconds.
+    // 1 minute = 60 seconds
+    // 1 second = 1000 milliseconds
+    // So, 1 minute = 60 × 1000 = 60000 milliseconds
+    const diffInSeconds = Math.floor((now - localDate) / 1000);
 
     if (diffInSeconds < 60) return "Just Now";
     if (diffInSeconds < 3600)
@@ -358,7 +369,7 @@ function formatTimeAgo(dateString) {
         return `${Math.floor(diffInSeconds / 3600)} hours ago`;
     if (diffInSeconds < 2592000)
         return `${Math.floor(diffInSeconds / 86400)} days ago`;
-    return date.toLocaleDateString();
+    return localDate.toLocaleDateString();
 }
 
 const userInitials = computed(() => {
