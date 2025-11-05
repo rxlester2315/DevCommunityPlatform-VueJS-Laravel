@@ -129,4 +129,64 @@ class User extends Authenticatable
         return $this->hasMany(Comment::class, 'user_id');
     }
 
+
+   public function following()
+{
+    return $this->belongsToMany(User::class, 'follows', 'follower_id', 'followed_id')
+                ->withPivot('followed_at') 
+                ->with('profile');
+}
+
+public function followers()
+{
+    return $this->belongsToMany(User::class, 'follows', 'followed_id', 'follower_id')
+                ->withPivot('followed_at') 
+                ->with('profile');
+}
+
+
+    public function toggleFollow(User $user): bool
+    {
+        if ($this->follows($user)) {
+            return $this->unfollow($user);
+        } else {
+            return $this->follow($user);
+        }
+    }
+
+        public function unfollow(User $user): bool
+    {
+        if ($this->follows($user)) {
+            $this->following()->detach($user->id);
+            return true;
+        }
+
+        return false;
+    }
+
+        public function follow(User $user): bool
+    {
+        // Prevent self-follow
+        if ($this->id === $user->id) {
+            return false;
+        }
+
+        // Only follow if not already following
+        if (!$this->follows($user)) {
+            $this->following()->attach($user->id, [
+                'followed_at' => now()
+            ]);
+            return true;
+        }
+
+        return false;
+    }
+
+      public function follows(User $user): bool
+    {
+        return $this->following()
+            ->where('followed_id', $user->id)
+            ->exists();
+    }
+
 }

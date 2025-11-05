@@ -9,6 +9,9 @@ import { auth } from "../utils/auth";
 import SetupProfileS from "../components/user/setupProfile.vue";
 import postComments from "../components/user/comment.vue";
 import axios from "axios";
+import VisitProfiles from "../components/user/visitProfile.vue";
+import followingUser from "../components/user/follows/following.vue";
+import followersUser from "../components/user/follows/followers.vue";
 
 const routes = [
     {
@@ -53,6 +56,27 @@ const routes = [
         path: "/comments/:id",
         name: "user.comment",
         component: postComments,
+        meta: { requiresAuth: true, requiresProfile: true },
+    },
+
+    {
+        path: "/profile/visit/:id",
+        name: "user.visitProfile",
+        component: VisitProfiles,
+        meta: { requiresAuth: true, requiresProfile: true },
+    },
+
+    {
+        path: "/profile/following",
+        name: "user.follows.following",
+        component: followingUser,
+        meta: { requiresAuth: true, requiresProfile: true },
+    },
+
+    {
+        path: "/profile/followers",
+        name: "user.follows.followers",
+        component: followersUser,
         meta: { requiresAuth: true, requiresProfile: true },
     },
 

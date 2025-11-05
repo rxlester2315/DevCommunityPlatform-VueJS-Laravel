@@ -92,9 +92,25 @@ Route::get('/posts/{post}/karma', [HomeController::class, 'show']);
 
 
 
+// Visit Profile
+
+Route::get('/profile/visit/{id}', [HomeController::class, 'visitProfile'])->middleware('auth:sanctum');
+
+
 
 
 // Google OAuth routes
 Route::get('auths/google/redirect', [GoogleAuthController::class, 'redirect']);
 
 Route::get('auths/google/callback', [GoogleAuthController::class, 'callback'])->middleware('web');
+
+
+Route::get('/follow/{user}/followers', [HomeController::class, 'followers'])->middleware('auth:sanctum');
+
+Route::get('/follow/{user}/following', [HomeController::class, 'following'])->middleware('auth:sanctum');
+
+
+Route::post('/users/{user}/follow', [HomeController::class, 'follow'])->middleware('auth:sanctum');
+
+Route::post('/users/{user}/unfollow', [HomeController::class, 'unfollow'])->middleware('auth:sanctum');
+Route::post('/users/{user}/toggle', [HomeController::class, 'toggleFollow'])->middleware('auth:sanctum');

@@ -1,17 +1,18 @@
 <script setup>
-import axios from "axios";
+import { ref, onMounted, watch, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { ref, onMounted, onBeforeUnmount, computed } from "vue";
-// In Vue
+import axios from "axios";
+import Swal from "sweetalert2";
 
+const route = useRoute();
 const router = useRouter();
 
 const profile = ref({
     user: {
         name: "",
         email: "",
+        username: "",
     },
-
     bio: "",
     location: "",
     website: "",
@@ -21,28 +22,98 @@ const profile = ref({
 });
 
 const posts = ref([]);
-
 const loading = ref(true);
-
 const isLoadingPosts = ref(true);
-const isCreatePostModalVisible = ref(false);
+const isDropdownVisible = ref(false);
+const followLoading = ref(false);
+const isFollowing = ref(false);
+const followerCount = ref(0);
 
+// Computed property for user initials
+const userInitials = computed(() => {
+    return getInitials(profile.value.user.name);
+});
+
+// Fetch profile data for the visited user
 const fetchProfile = async () => {
     try {
-        const response = await axios.get("/api/profile/get");
+        const response = await axios.get(
+            `/api/profile/visit/${route.params.id}`
+        );
         profile.value = response.data.profile;
+        isFollowing.value = response.data.is_following;
     } catch (error) {
-        console.error("Failed to fetch Profiles", error);
+        console.error("Failed to fetch Profile", error);
+        Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "Failed to load profile",
+        });
     } finally {
         loading.value = false;
     }
 };
-function toggleDropdown() {
-    isDropdownVisible.value = !isDropdownVisible.value;
-}
-const isDropdownVisible = ref(false);
 
-const fetchPost = async () => {
+const followUser = async () => {
+    followLoading.value = true;
+
+    try {
+        const response = await axios.post(
+            `/api/users/${route.params.id}/toggle`
+        );
+
+        isFollowing.value = response.data.data.is_following;
+
+        const action = isFollowing.value ? "followed" : "unfollowed";
+        const message = `You have ${action} ${profile.value.user.name}.`;
+
+        await Swal.fire({
+            toast: true,
+            icon: "success",
+            title: message,
+            position: "top-end",
+            showConfirmButton: false,
+            timer: 2500,
+            timerProgressBar: true,
+            background: "#1e1e2f", // subtle dark background
+            color: "#fff",
+            iconColor: "#4ade80", // modern green accent
+            customClass: {
+                popup: "swal2-modern-toast",
+            },
+            didOpen: (toast) => {
+                toast.addEventListener("mouseenter", Swal.stopTimer);
+                toast.addEventListener("mouseleave", Swal.resumeTimer);
+            },
+        });
+    } catch (error) {
+        console.error("Error Follow", error);
+
+        let errorMessage = "Failed to follow. Please try again.";
+
+        if (error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+        }
+
+        await Swal.fire({
+            icon: "error",
+            title: "Oops!",
+            text: errorMessage,
+            background: "#1e1e2f",
+            color: "#fff",
+            iconColor: "#f87171", // modern red
+            confirmButtonColor: "#6366f1", // indigo accent
+            customClass: {
+                popup: "swal2-modern-popup",
+            },
+        });
+    } finally {
+        followLoading.value = false;
+    }
+};
+
+// Fetch posts for the visited user
+const fetchPosts = async () => {
     try {
         const response = await axios.get("/api/profile/post");
 
@@ -54,9 +125,9 @@ const fetchPost = async () => {
     }
 };
 
+// Use the same helper functions from your main profile
 const formatDate = (datestring) => {
     if (!datestring) return "";
-
     const date = new Date(datestring);
     return date.toLocaleDateString("en-US", {
         year: "numeric",
@@ -66,7 +137,6 @@ const formatDate = (datestring) => {
 
 const getInitials = (name) => {
     if (!name) return "UD";
-
     return name
         .split(" ")
         .map((word) => word[0])
@@ -92,13 +162,11 @@ function formatTimeAgo(dateString) {
 
 const getUsername = (email) => {
     if (!email) return "";
-
     return email.split("@")[0];
 };
 
 const getWebsite = (website) => {
     if (!website) return "";
-
     try {
         const url = new URL(website);
         return url.hostname.replace("www.", "");
@@ -107,18 +175,8 @@ const getWebsite = (website) => {
     }
 };
 
-function handleEscape(e) {
-    if (e.key === "Escape") {
-        isDropdownVisible.value = false;
-        if (isCreatePostModalVisible.value) {
-            closeCreatePostModal();
-        }
-    }
-}
-
 const getGithub = (githublink) => {
     if (!githublink) return "";
-
     try {
         const url = new URL(githublink);
         return url.pathname.replace("/", "");
@@ -126,23 +184,34 @@ const getGithub = (githublink) => {
         return githublink;
     }
 };
-onMounted(() => {
-    fetchProfile();
-    fetchPost();
-});
 
-onBeforeUnmount(() => {
-    document.removeEventListener("keydown", handleEscape);
-});
+function toggleDropdown() {
+    isDropdownVisible.value = !isDropdownVisible.value;
+}
 
 const backToHome = () => {
     router.push("/home");
 };
+
+// Lifecycle
+onMounted(() => {
+    fetchProfile();
+    fetchPosts();
+});
+
+// Watch for route changes
+watch(
+    () => route.params.id,
+    () => {
+        fetchProfile();
+        fetchPosts();
+    }
+);
 </script>
 
 <template>
     <body class="min-h-screen">
-        <!-- Header -->
+        <!-- Header - Same as your main profile -->
         <header
             class="sticky top-0 z-50 bg-black/95 backdrop-blur-sm border-b border-zinc-800"
         >
@@ -183,52 +252,7 @@ const backToHome = () => {
                                 class="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full"
                             ></span>
                         </button>
-                        <div class="relative inline-block text-left">
-                            <div
-                                class="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-sm font-medium cursor-pointer"
-                                @click="toggleDropdown"
-                            >
-                                <img
-                                    v-if="profile.photo_profile"
-                                    :src="`/storage/${profile.photo_profile}`"
-                                    alt="User Profile Picture"
-                                    class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold bg-blue-500 overflow-hidden border-2 border-orange-500"
-                                />
-
-                                <div
-                                    v-else
-                                    class="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white text-sm font-medium"
-                                >
-                                    {{ userInitials }}
-                                </div>
-                            </div>
-
-                            <div
-                                v-show="isDropdownVisible"
-                                class="absolute left-30 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg"
-                            >
-                                <div class="py-1">
-                                    <a
-                                        @click="goToProfile"
-                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                                    >
-                                        Profile
-                                    </a>
-
-                                    <a
-                                        href="#"
-                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                        >Settings</a
-                                    >
-                                    <a
-                                        href="#"
-                                        @click="logout"
-                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                        >Logout</a
-                                    >
-                                </div>
-                            </div>
-                        </div>
+                        <!-- Your user dropdown remains the same -->
                     </div>
                 </div>
             </div>
@@ -251,7 +275,6 @@ const backToHome = () => {
                         <div
                             class="w-32 h-32 rounded-full bg-gradient-to-br from-orange-500 to-pink-500 p-1"
                         >
-                            <!-- Display profile if meron -->
                             <div
                                 v-if="profile.photo_profile"
                                 class="w-full h-full rounded-full bg-zinc-900 overflow-hidden"
@@ -262,7 +285,6 @@ const backToHome = () => {
                                     class="w-full h-full object-cover"
                                 />
                             </div>
-                            <!-- Display initials LIKE RX if wala -->
                             <div
                                 v-else
                                 class="w-full h-full rounded-full bg-zinc-900 flex items-center justify-center text-4xl font-bold text-white"
@@ -270,12 +292,7 @@ const backToHome = () => {
                                 {{ getInitials(profile.user.name) }}
                             </div>
                         </div>
-                        <button
-                            class="absolute bottom-0 right-0 w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center hover:bg-orange-600 transition-colors"
-                            @click="router.push('/edit-profile')"
-                        >
-                            <i class="fas fa-camera text-white text-sm"></i>
-                        </button>
+                        <!-- Remove edit button for visited profiles -->
                     </div>
 
                     <!-- User Info -->
@@ -294,12 +311,50 @@ const backToHome = () => {
                             </div>
                             <div class="flex items-center gap-3">
                                 <button
-                                    class="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium"
+                                    @click="followUser"
+                                    :disabled="followLoading"
+                                    :class="[
+                                        'px-6 py-2 rounded-lg transition-colors font-medium flex items-center gap-2',
+                                        isFollowing
+                                            ? 'bg-gray-700 text-white hover:bg-gray-600 border border-gray-600'
+                                            : 'bg-orange-500 text-white hover:bg-orange-600',
+                                        followLoading
+                                            ? 'opacity-50 cursor-not-allowed'
+                                            : '',
+                                    ]"
                                 >
-                                    <i class="fas fa-user-plus mr-2"></i>Edit
-                                    Profile
+                                    <!-- Loading Spinner -->
+                                    <i
+                                        v-if="followLoading"
+                                        class="fas fa-spinner fa-spin"
+                                    ></i>
+
+                                    <!-- Following Icon (when already following) -->
+                                    <i
+                                        v-else-if="isFollowing"
+                                        class="fas fa-user-check"
+                                    ></i>
+
+                                    <!-- Follow Icon (when not following) -->
+                                    <i v-else class="fas fa-user-plus"></i>
+
+                                    <!-- Dynamic Text -->
+                                    <span>
+                                        {{
+                                            followLoading
+                                                ? "Loading..."
+                                                : isFollowing
+                                                ? "Following"
+                                                : "Follow"
+                                        }}
+                                    </span>
                                 </button>
 
+                                <button
+                                    class="px-6 py-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors font-medium"
+                                >
+                                    <i class="fas fa-envelope mr-2"></i>Message
+                                </button>
                                 <button
                                     class="p-2 bg-zinc-800 text-white rounded-lg hover:bg-zinc-700 transition-colors"
                                 >
@@ -315,27 +370,28 @@ const backToHome = () => {
                                 href="#"
                                 class="text-zinc-400 hover:text-orange-500 transition-colors"
                             >
-                                <i class="fas fa-map-marker-alt mr-2"></i
-                                >{{
+                                <i class="fas fa-map-marker-alt mr-2"></i>
+                                {{
                                     profile.location || "No location Available"
                                 }}
                             </a>
                             <a
-                                href="#"
+                                v-if="profile.website"
+                                :href="profile.website"
+                                target="_blank"
                                 class="text-zinc-400 hover:text-orange-500 transition-colors"
                             >
-                                <i class="fas fa-link mr-2"></i
-                                >{{
-                                    getWebsite(profile.website) ||
-                                    "No Website Available"
-                                }}
+                                <i class="fas fa-link mr-2"></i>
+                                {{ getWebsite(profile.website) }}
                             </a>
                             <a
-                                href="#"
+                                v-if="profile.github_url"
+                                :href="profile.github_url"
+                                target="_blank"
                                 class="text-zinc-400 hover:text-orange-500 transition-colors"
                             >
-                                <i class="fab fa-github mr-2"></i
-                                >{{ getGithub(profile.github_url) }}
+                                <i class="fab fa-github mr-2"></i>
+                                {{ getGithub(profile.github_url) }}
                             </a>
                         </div>
                     </div>
@@ -346,7 +402,9 @@ const backToHome = () => {
                     <div
                         class="stat-card p-4 rounded-lg border border-zinc-800"
                     >
-                        <div class="text-2xl font-bold text-white">1,234</div>
+                        <div class="text-2xl font-bold text-white">
+                            {{ posts.length }}
+                        </div>
                         <div class="text-sm text-zinc-400">Posts</div>
                     </div>
                     <div
@@ -373,7 +431,7 @@ const backToHome = () => {
             </div>
         </div>
 
-        <!-- Main Content -->
+        <!-- Main Content - Same structure as your profile -->
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <!-- Left Column - Main Content -->
@@ -410,10 +468,9 @@ const backToHome = () => {
                         ></div>
                         <p class="text-gray-400 mt-2">Loading posts...</p>
                     </div>
+
                     <!-- Posts -->
                     <div class="space-y-4">
-                        <!-- Post Card 1 -->
-
                         <div
                             v-for="post in posts"
                             :key="post.id"
@@ -428,7 +485,7 @@ const backToHome = () => {
                                     </button>
                                     <span
                                         class="text-sm font-medium text-orange-500"
-                                        >342</span
+                                        >{{ post.karma_score || 0 }}</span
                                     >
                                     <button
                                         class="text-zinc-400 hover:text-blue-500 transition-colors"
@@ -468,8 +525,9 @@ const backToHome = () => {
                                         <button
                                             class="hover:text-white transition-colors"
                                         >
-                                            <i class="fas fa-comment mr-2"></i
-                                            >45 comments
+                                            <i class="fas fa-comment mr-2"></i>
+                                            {{ post.comments_count || 0 }}
+                                            comments
                                         </button>
                                         <button
                                             class="hover:text-white transition-colors"
@@ -487,10 +545,15 @@ const backToHome = () => {
                                 </div>
                             </div>
                         </div>
+
+                        <div
+                            v-if="!isLoadingPosts && posts.length === 0"
+                            class="text-center py-8"
+                        >
+                            <p class="text-gray-400">No posts yet</p>
+                        </div>
                     </div>
                 </div>
-
-                <!-- Right Column - Sidebar -->
                 <div class="space-y-6">
                     <!-- Contribution Graph -->
                     <div
@@ -746,9 +809,7 @@ const backToHome = () => {
                                 <div class="flex items-center gap-3">
                                     <div
                                         class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-xs font-bold"
-                                    >
-                                        R
-                                    </div>
+                                    ></div>
                                     <div>
                                         <div
                                             class="text-sm font-medium text-white"

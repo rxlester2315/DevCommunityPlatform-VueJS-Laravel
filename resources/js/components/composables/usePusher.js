@@ -56,9 +56,14 @@ export function usePusher() {
             handleNewComment(data);
         });
 
-        // ADD THIS: Listen for vote notifications
+        //  Listen for vote notifications if meron mag vote
         channel.bind("new.vote", (data) => {
             handleNewVote(data);
+        });
+
+        // listen if may mag follow sayo
+        channel.bind("user.followed", (data) => {
+            handleNewFollower(data);
         });
 
         // Connection events
@@ -75,7 +80,191 @@ export function usePusher() {
 
         return pusher.value;
     };
-    // this function will handle new comment notifications
+
+    const handleNewFollower = (data) => {
+        notifications.value.unshift({
+            id: Date.now(),
+            type: "follow",
+            data: data,
+            read: false,
+            timestamp: new Date(),
+        });
+
+        // Show the notification UI
+        showFollowNotification(data);
+    };
+
+    const showFollowNotification = (data) => {
+        if (typeof Swal === "undefined") return;
+
+        const initials = data.follower.name
+            .split(" ")
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase();
+
+        const notificationHTML = `
+    <div class="modern-toast">
+      <div class="toast-body">
+        <div class="avatar" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);">
+          ${initials}
+        </div>
+        <div class="toast-info">
+          <div class="user-name">${data.follower.name}</div>
+          <div class="toast-action">started following you</div>
+          <div class="timestamp">${new Date(
+              data.followed_at
+          ).toLocaleTimeString()}</div>
+        </div>
+        <div class="follow-icon">👤</div>
+      </div>
+    </div>
+  `;
+
+        Swal.fire({
+            html: notificationHTML,
+            toast: true,
+            position: "top-end",
+            width: 400,
+            padding: 0,
+            background: "rgba(30, 30, 40, 0.7)",
+            color: "#fff",
+            showConfirmButton: true,
+            showCancelButton: true,
+            confirmButtonText: "View Profile",
+            cancelButtonText: "Dismiss",
+            timer: 8000,
+            timerProgressBar: true,
+            showCloseButton: true,
+            customClass: {
+                popup: "glass-toast",
+                confirmButton: "glass-confirm-btn",
+                cancelButton: "glass-cancel-btn",
+                actions: "glass-actions",
+            },
+            didOpen: (toast) => {
+                toast.addEventListener("mouseenter", Swal.stopTimer);
+                toast.addEventListener("mouseleave", Swal.resumeTimer);
+            },
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = `/profile/visit/${data.follower.id}`;
+            }
+        });
+
+        // Inject global glass styles (shared across all notifications)
+        if (!document.querySelector("#glass-toast-styles")) {
+            const style = document.createElement("style");
+            style.id = "glass-toast-styles";
+            style.textContent = `
+      .glass-toast {
+        border-radius: 16px !important;
+        backdrop-filter: blur(12px) saturate(180%) !important;
+        background: rgba(30, 30, 40, 0.75) !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+        overflow: hidden;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .modern-toast {
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #fff;
+      }
+
+      .toast-body {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        gap: 14px;
+      }
+
+      .avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 15px;
+        color: #fff;
+        flex-shrink: 0;
+      }
+
+      .toast-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .user-name {
+        font-weight: 600;
+        font-size: 14px;
+      }
+
+      .toast-action {
+        font-size: 13px;
+        opacity: 0.9;
+      }
+
+      .timestamp {
+        font-size: 11px;
+        opacity: 0.6;
+        margin-top: 3px;
+      }
+
+      .follow-icon {
+        font-size: 22px;
+        flex-shrink: 0;
+        opacity: 0.8;
+      }
+
+      .glass-actions {
+        padding: 10px 16px !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        gap: 8px;
+      }
+
+      .glass-confirm-btn,
+      .glass-cancel-btn {
+        flex: 1;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .glass-confirm-btn {
+        background: #4f46e5;
+        color: white;
+      }
+
+      .glass-confirm-btn:hover {
+        background: #4338ca;
+      }
+
+      .glass-cancel-btn {
+        background: rgba(255, 255, 255, 0.15);
+        color: #fff;
+      }
+
+      .glass-cancel-btn:hover {
+        background: rgba(255, 255, 255, 0.25);
+      }
+
+      .swal2-timer-progress-bar {
+        background: linear-gradient(90deg, #f97316, #fb923c);
+      }
+    `;
+            document.head.appendChild(style);
+        }
+    };
+
     const handleNewComment = (data) => {
         notifications.value.unshift({
             id: Date.now(),
@@ -85,7 +274,6 @@ export function usePusher() {
             timestamp: new Date(),
         });
 
-        // then call yung showNotification function para display yung notifcation ui
         showNotification(data);
     };
     // eto function na to is mag di display ng notification gamit yung Swal.fire ex.John Doe commented on your post: "Great post!"
@@ -109,186 +297,171 @@ export function usePusher() {
     };
 
     const showNotification = (data) => {
-        if (typeof Swal !== "undefined") {
-            // Create custom HTML for Facebook-style notification
-            const notificationHTML = `
-            <div class="facebook-toast">
-                <div class="toast-header">
-                    <div class="user-avatar">
-                        ${data.comment_author_name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")
-                            .toUpperCase()}
-                    </div>
-                    <div class="toast-content">
-                        <div class="user-name">${data.comment_author_name}</div>
-                        <div class="action-text">commented on your post</div>
-                        <div class="timestamp">${data.created_at}</div>
-                    </div>
-                </div>
-              
-            </div>
-        `;
+        if (typeof Swal === "undefined") return;
 
-            Swal.fire({
-                html: notificationHTML,
-                showConfirmButton: true,
-                showCancelButton: true,
-                confirmButtonText: "<span>View</span>",
-                cancelButtonText: "<span>✕ Dismiss</span>",
-                toast: true,
-                position: "top-end",
-                width: 420,
-                padding: "0",
-                background: "#ffffff",
-                customClass: {
-                    popup: "modern-facebook-toast",
-                    confirmButton: "modern-confirm-btn",
-                    cancelButton: "modern-cancel-btn",
-                    actions: "modern-actions-container",
-                },
-                timer: 10000,
-                showCloseButton: true,
-                closeButtonHtml: `
-                <div class="close-btn">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-                    </svg>
-                </div>
-            `,
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    window.location.href = `/comments/${data.post_id}`;
-                }
-            });
+        const initials = data.comment_author_name
+            .split(" ")
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase();
 
-            if (!document.querySelector("#facebook-toast-styles")) {
-                const style = document.createElement("style");
-                style.id = "facebook-toast-styles";
-                style.textContent = `
-                .modern-facebook-toast {
-                    border-radius: 12px;
-                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
-                    border: 1px solid #e4e6ea;
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                }
-                
-                .facebook-toast {
-                    padding: 16px;
-                }
-                
-                .toast-header {
-                    display: flex;
-                    align-items: flex-start;
-                    gap: 12px;
-                    margin-bottom: 12px;
-                }
-                
-                .user-avatar {
-                    width: 44px;
-                    height: 44px;
-                    border-radius: 50%;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    color: white;
-                    font-weight: 700;
-                    font-size: 15px;
-                    flex-shrink: 0;
-                }
-                
-                .toast-content {
-                    flex: 1;
-                    min-width: 0;
-                }
-                
-                .user-name {
-                    font-weight: 700;
-                    color: #1c1e21;
-                    font-size: 15px;
-                    margin-bottom: 2px;
-                }
-                
-                .action-text {
-                    color: #65676b;
-                    font-size: 14px;
-                    margin-bottom: 2px;
-                }
-                
-                .timestamp {
-                    color: #8a8d91;
-                    font-size: 12px;
-                }
-                
-               
-                
-                .comment-text {
-                    color: #1c1e21;
-                    font-size: 13px;
-                    line-height: 1.4;
-                    font-style: italic;
-                }
-                
-                .modern-actions-container {
-                    margin: 0;
-                    padding: 12px 16px;
-                    border-top: 1px solid #e4e6ea;
-                    gap: 8px;
-                }
-                
-                .modern-confirm-btn, .modern-cancel-btn {
-                    flex: 1;
-                    padding: 8px 16px;
-                    border-radius: 6px;
-                    font-weight: 600;
-                    font-size: 13px;
-                    border: none;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                }
-                
-                .modern-confirm-btn {
-                    background: #1877f2;
-                    color: white;
-                }
-                
-                .modern-confirm-btn:hover {
-                    background: #166fe5;
-                }
-                
-                .modern-cancel-btn {
-                    background: #e4e6ea;
-                    color: #1c1e21;
-                }
-                
-                .modern-cancel-btn:hover {
-                    background: #d8dadf;
-                }
-                
-                .close-btn {
-                    width: 32px;
-                    height: 32px;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    color: #65676b;
-                    transition: background-color 0.2s;
-                    cursor: pointer;
-                }
-                
-                .close-btn:hover {
-                    background: #f0f2f5;
-                }
-                
-                .swal2-timer-progress-bar {
-                    background: #1877f2;
-                }
-            `;
-                document.head.appendChild(style);
+        const notificationHTML = `
+    <div class="modern-toast">
+      <div class="toast-body">
+        <div class="avatar" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+          ${initials}
+        </div>
+        <div class="toast-info">
+          <div class="user-name">${data.comment_author_name}</div>
+          <div class="toast-action">commented on your post</div>
+          <div class="timestamp">${data.created_at}</div>
+        </div>
+        <div class="comment-icon">💬</div>
+      </div>
+    </div>
+  `;
+
+        Swal.fire({
+            html: notificationHTML,
+            toast: true,
+            position: "top-end",
+            width: 400,
+            padding: 0,
+            background: "rgba(30, 30, 40, 0.7)",
+            color: "#fff",
+            showConfirmButton: true,
+            showCancelButton: true,
+            confirmButtonText: "View",
+            cancelButtonText: "Dismiss",
+            timer: 9000,
+            timerProgressBar: true,
+            showCloseButton: true,
+            customClass: {
+                popup: "glass-toast",
+                confirmButton: "glass-confirm-btn",
+                cancelButton: "glass-cancel-btn",
+                actions: "glass-actions",
+            },
+            didOpen: (toast) => {
+                toast.addEventListener("mouseenter", Swal.stopTimer);
+                toast.addEventListener("mouseleave", Swal.resumeTimer);
+            },
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = `/comments/${data.post_id}`;
             }
+        });
+
+        // Inject styles once
+        if (!document.querySelector("#modern-toast-styles")) {
+            const style = document.createElement("style");
+            style.id = "modern-toast-styles";
+            style.textContent = `
+      .glass-toast {
+        border-radius: 16px !important;
+        backdrop-filter: blur(12px) saturate(180%) !important;
+        background: rgba(30, 30, 40, 0.75) !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+        overflow: hidden;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .modern-toast {
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #fff;
+      }
+
+      .toast-body {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        gap: 14px;
+      }
+
+      .avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 15px;
+        color: #fff;
+        flex-shrink: 0;
+      }
+
+      .toast-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .user-name {
+        font-weight: 600;
+        font-size: 14px;
+      }
+
+      .toast-action {
+        font-size: 13px;
+        opacity: 0.9;
+      }
+
+      .timestamp {
+        font-size: 11px;
+        opacity: 0.6;
+        margin-top: 3px;
+      }
+
+      .comment-icon {
+        font-size: 22px;
+        flex-shrink: 0;
+        opacity: 0.8;
+      }
+
+      .glass-actions {
+        padding: 10px 16px !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        gap: 8px;
+      }
+
+      .glass-confirm-btn,
+      .glass-cancel-btn {
+        flex: 1;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .glass-confirm-btn {
+        background: #4f46e5;
+        color: white;
+      }
+
+      .glass-confirm-btn:hover {
+        background: #4338ca;
+      }
+
+      .glass-cancel-btn {
+        background: rgba(255, 255, 255, 0.15);
+        color: #fff;
+      }
+
+      .glass-cancel-btn:hover {
+        background: rgba(255, 255, 255, 0.25);
+      }
+
+      .swal2-timer-progress-bar {
+        background: linear-gradient(90deg, #60a5fa, #818cf8);
+      }
+    `;
+            document.head.appendChild(style);
         }
     };
 
@@ -306,216 +479,195 @@ export function usePusher() {
     };
 
     const showVoteNotification = (data) => {
-        if (typeof Swal !== "undefined") {
-            // Determine the icon and message based on vote type
-            const voteConfig = {
-                upvote: {
-                    icon: "👍",
-                    action: "upvoted",
-                    color: "#1877f2",
-                    gradient:
-                        "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                },
-                downvote: {
-                    icon: "👎",
-                    action: "downvoted",
-                    color: "#ff4444",
-                    gradient:
-                        "linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)",
-                },
-            };
+        if (typeof Swal === "undefined") return;
 
-            const config = voteConfig[data.vote_type] || voteConfig.upvote;
+        const voteConfig = {
+            upvote: {
+                icon: "👍",
+                action: "upvoted",
+                color: "#4ade80",
+                gradient: "linear-gradient(135deg, #42a5f5 0%, #478ed1 100%)",
+            },
+            downvote: {
+                icon: "👎",
+                action: "downvoted",
+                color: "#f87171",
+                gradient: "linear-gradient(135deg, #ef5350 0%, #e53935 100%)",
+            },
+        };
 
-            // Create custom HTML for vote notification
-            const notificationHTML = `
-            <div class="facebook-toast">
-                <div class="toast-header">
-                    <div class="user-avatar" style="background: ${
-                        config.gradient
-                    }">
-                        ${data.voter_name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")
-                            .toUpperCase()}
-                    </div>
-                    <div class="toast-content">
-                        <div class="user-name">${data.voter_name}</div>
-                        <div class="action-text">${
-                            config.action
-                        } your post</div>
-                        <div class="post-title">"${data.post_title}"</div>
-                        <div class="timestamp">${data.created_at}</div>
-                    </div>
-                    <div class="vote-icon">${config.icon}</div>
-                </div>
-            </div>
-        `;
+        const config = voteConfig[data.vote_type] || voteConfig.upvote;
 
-            Swal.fire({
-                html: notificationHTML,
-                showConfirmButton: true,
-                showCancelButton: true,
-                confirmButtonText: "<span>View</span>",
-                cancelButtonText: "<span>✕ Dismiss</span>",
-                toast: true,
-                position: "top-end",
-                width: 420,
-                padding: "0",
-                background: "#ffffff",
-                customClass: {
-                    popup: "modern-facebook-toast",
-                    confirmButton: "modern-confirm-btn",
-                    cancelButton: "modern-cancel-btn",
-                    actions: "modern-actions-container",
-                },
-                timer: 8000, // Slightly shorter timer for votes
-                showCloseButton: true,
-                closeButtonHtml: `
-                <div class="close-btn">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-                    </svg>
-                </div>
-            `,
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    window.location.href = `/comments/${data.post_id}`;
-                }
-            });
+        const initials = data.voter_name
+            .split(" ")
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase();
 
-            // ADD THESE STYLES to your existing CSS or update the style block
-            if (!document.querySelector("#facebook-toast-styles")) {
-                const style = document.createElement("style");
-                style.id = "facebook-toast-styles";
-                style.textContent = `
-                .modern-facebook-toast {
-                    border-radius: 12px;
-                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
-                    border: 1px solid #e4e6ea;
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                }
-                
-                .facebook-toast {
-                    padding: 16px;
-                }
-                
-                .toast-header {
-                    display: flex;
-                    align-items: flex-start;
-                    gap: 12px;
-                    margin-bottom: 12px;
-                }
-                
-                .user-avatar {
-                    width: 44px;
-                    height: 44px;
-                    border-radius: 50%;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    color: white;
-                    font-weight: 700;
-                    font-size: 15px;
-                    flex-shrink: 0;
-                }
-                
-                .toast-content {
-                    flex: 1;
-                    min-width: 0;
-                }
-                
-                .user-name {
-                    font-weight: 700;
-                    color: #1c1e21;
-                    font-size: 15px;
-                    margin-bottom: 2px;
-                }
-                
-                .action-text {
-                    color: #65676b;
-                    font-size: 14px;
-                    margin-bottom: 2px;
-                }
-                
-                .post-title {
-                    color: #1c1e21;
-                    font-size: 13px;
-                    font-weight: 500;
-                    margin: 4px 0;
-                    font-style: italic;
-                }
-                
-                .timestamp {
-                    color: #8a8d91;
-                    font-size: 12px;
-                }
-                
-                .vote-icon {
-                    font-size: 20px;
-                    flex-shrink: 0;
-                }
-                
-                .modern-actions-container {
-                    margin: 0;
-                    padding: 12px 16px;
-                    border-top: 1px solid #e4e6ea;
-                    gap: 8px;
-                }
-                
-                .modern-confirm-btn, .modern-cancel-btn {
-                    flex: 1;
-                    padding: 8px 16px;
-                    border-radius: 6px;
-                    font-weight: 600;
-                    font-size: 13px;
-                    border: none;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                }
-                
-                .modern-confirm-btn {
-                    background: #1877f2;
-                    color: white;
-                }
-                
-                .modern-confirm-btn:hover {
-                    background: #166fe5;
-                }
-                
-                .modern-cancel-btn {
-                    background: #e4e6ea;
-                    color: #1c1e21;
-                }
-                
-                .modern-cancel-btn:hover {
-                    background: #d8dadf;
-                }
-                
-                .close-btn {
-                    width: 32px;
-                    height: 32px;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    color: #65676b;
-                    transition: background-color 0.2s;
-                    cursor: pointer;
-                }
-                
-                .close-btn:hover {
-                    background: #f0f2f5;
-                }
-                
-                .swal2-timer-progress-bar {
-                    background: #1877f2;
-                }
-            `;
-                document.head.appendChild(style);
+        const notificationHTML = `
+    <div class="modern-toast">
+      <div class="toast-body">
+        <div class="avatar" style="background: ${config.gradient};">
+          ${initials}
+        </div>
+        <div class="toast-info">
+          <div class="user-name">${data.voter_name}</div>
+          <div class="toast-action">${config.action} your post</div>
+          <div class="post-title">"${data.post_title}"</div>
+          <div class="timestamp">${data.created_at}</div>
+        </div>
+        <div class="vote-icon">${config.icon}</div>
+      </div>
+    </div>
+  `;
+
+        Swal.fire({
+            html: notificationHTML,
+            toast: true,
+            position: "top-end",
+            width: 400,
+            padding: 0,
+            background: "rgba(30, 30, 40, 0.7)",
+            color: "#fff",
+            showConfirmButton: true,
+            showCancelButton: true,
+            confirmButtonText: "View",
+            cancelButtonText: "Dismiss",
+            timer: 7000,
+            timerProgressBar: true,
+            showCloseButton: true,
+            customClass: {
+                popup: "glass-toast",
+                confirmButton: "glass-confirm-btn",
+                cancelButton: "glass-cancel-btn",
+                actions: "glass-actions",
+            },
+            didOpen: (toast) => {
+                toast.addEventListener("mouseenter", Swal.stopTimer);
+                toast.addEventListener("mouseleave", Swal.resumeTimer);
+            },
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = `/comments/${data.post_id}`;
             }
+        });
+
+        // Inject styles once
+        if (!document.querySelector("#modern-toast-styles")) {
+            const style = document.createElement("style");
+            style.id = "modern-toast-styles";
+            style.textContent = `
+      .glass-toast {
+        border-radius: 16px !important;
+        backdrop-filter: blur(12px) saturate(160%) !important;
+        background: rgba(30, 30, 40, 0.75) !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+        overflow: hidden;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .modern-toast {
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #fff;
+      }
+
+      .toast-body {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        gap: 14px;
+      }
+
+      .avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 15px;
+        color: #fff;
+        flex-shrink: 0;
+      }
+
+      .toast-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .user-name {
+        font-weight: 600;
+        font-size: 14px;
+      }
+
+      .toast-action {
+        font-size: 13px;
+        opacity: 0.9;
+      }
+
+      .post-title {
+        font-size: 12px;
+        opacity: 0.8;
+        font-style: italic;
+        margin-top: 4px;
+      }
+
+      .timestamp {
+        font-size: 11px;
+        opacity: 0.6;
+        margin-top: 2px;
+      }
+
+      .vote-icon {
+        font-size: 22px;
+        flex-shrink: 0;
+      }
+
+      .glass-actions {
+        padding: 10px 16px !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        gap: 8px;
+      }
+
+      .glass-confirm-btn,
+      .glass-cancel-btn {
+        flex: 1;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .glass-confirm-btn {
+        background: #4f46e5;
+        color: white;
+      }
+
+      .glass-confirm-btn:hover {
+        background: #4338ca;
+      }
+
+      .glass-cancel-btn {
+        background: rgba(255, 255, 255, 0.15);
+        color: #fff;
+      }
+
+      .glass-cancel-btn:hover {
+        background: rgba(255, 255, 255, 0.25);
+      }
+
+      .swal2-timer-progress-bar {
+        background: linear-gradient(90deg, #4ade80, #60a5fa);
+      }
+    `;
+            document.head.appendChild(style);
         }
     };
 
@@ -528,7 +680,8 @@ export function usePusher() {
         initPusher,
         disconnect,
         markAsRead,
-        // Optional: Export the new function if you want to use it elsewhere
+        handleNewFollower,
+        showFollowNotification,
         showVoteNotification,
     };
 

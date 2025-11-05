@@ -22,6 +22,7 @@ const editImagePreview = ref(null);
 const isDropdownVisible = ref(false);
 const isCreatePostModalVisible = ref(false);
 const postContent = ref("");
+
 const categoryPost = ref("");
 const posts = ref([]);
 const postTitle = ref("");
@@ -30,6 +31,11 @@ const imagePreview = ref(null);
 const isLoading = ref(false);
 const user = ref(null);
 const total_comments = ref(0);
+const currentUserId = ref(null);
+
+const currentUser = computed(() => auth.getUser()); // ✅ Correct - calls the function
+
+console.log("HERE THE DATA", currentUser.value); // ✅ Use .value to get the actual data
 
 function onPostVoted(voteData) {
     const postIndex = posts.value.findIndex(
@@ -600,6 +606,18 @@ const goToComments = (postId) => {
         params: { id: postId },
     });
 };
+
+onMounted(() => {
+    const user = auth.getUser();
+    currentUserId.value = user?.id;
+});
+
+const VisitProfile = (userId) => {
+    router.push({
+        name: "user.visitProfile",
+        params: { id: userId },
+    });
+};
 </script>
 
 <template>
@@ -1051,15 +1069,25 @@ const goToComments = (postId) => {
                                     </span>
                                     <span>
                                         Posted by
-                                        <span
-                                            class="text-white hover:underline cursor-pointer"
+
+                                        <!-- For own profile -->
+                                        <router-link
+                                            v-if="
+                                                post.user?.id === currentUserId
+                                            "
+                                            to="/profiles"
+                                            class="text-white hover:underline"
                                         >
-                                            {{
-                                                post.user?.name ||
-                                                "@" +
-                                                    (post.user?.username ||
-                                                        "user")
-                                            }}
+                                            {{ post.user?.name }}
+                                        </router-link>
+
+                                        <!-- For other profiles -->
+                                        <span
+                                            v-else
+                                            class="text-white hover:underline cursor-pointer"
+                                            @click="VisitProfile(post.user?.id)"
+                                        >
+                                            {{ post.user?.name }}
                                         </span>
                                     </span>
                                     <span>•</span>
