@@ -66,6 +66,11 @@ export function usePusher() {
             handleNewFollower(data);
         });
 
+        // here we notified yung user if they become friends
+        channel.bind("became.friends", (data) => {
+            handleBecomeFriends(data);
+        });
+
         // Connection events
         // this debug purposes only
         pusher.value.connection.bind("connected", () => {
@@ -92,6 +97,196 @@ export function usePusher() {
 
         // Show the notification UI
         showFollowNotification(data);
+    };
+
+    const handleBecomeFriends = (data) => {
+        notifications.value.unshift({
+            id: Date.now(),
+            type: "Friendship",
+            data: data,
+            read: false,
+            timestamp: new Date(),
+        });
+
+        showFriendshipNotification(data);
+    };
+
+    const showFriendshipNotification = (data) => {
+        if (typeof Swal === "undefined") return;
+
+        const initials = data.friend.name
+            .split(" ")
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase();
+
+        const notificationHTML = `
+    <div class="modern-toast">
+      <div class="toast-body">
+        <div class="avatar" style="background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);">
+          ${initials}
+        </div>
+        <div class="toast-info">
+          <div class="user-name">${data.friend.name}</div>
+          <div class="toast-action">You are now friends!</div>
+          <div class="friendship-message">${data.message}</div>
+          <div class="timestamp">${new Date().toLocaleTimeString()}</div>
+        </div>
+        <div class="friends-icon">🤝</div>
+      </div>
+    </div>
+  `;
+
+        Swal.fire({
+            html: notificationHTML,
+            toast: true,
+            position: "top-end",
+            width: 400,
+            padding: 0,
+            background: "rgba(30, 30, 40, 0.7)",
+            color: "#fff",
+            showConfirmButton: true,
+            showCancelButton: true,
+            confirmButtonText: "View Profile",
+            cancelButtonText: "Dismiss",
+            timer: 8000,
+            timerProgressBar: true,
+            showCloseButton: true,
+            customClass: {
+                popup: "glass-toast friendship-toast",
+                confirmButton: "glass-confirm-btn",
+                cancelButton: "glass-cancel-btn",
+                actions: "glass-actions",
+            },
+            didOpen: (toast) => {
+                toast.addEventListener("mouseenter", Swal.stopTimer);
+                toast.addEventListener("mouseleave", Swal.resumeTimer);
+            },
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = `/profile/visit/${data.friend.id}`;
+            }
+        });
+
+        // Inject global glass styles once
+        if (!document.querySelector("#glass-toast-styles")) {
+            const style = document.createElement("style");
+            style.id = "glass-toast-styles";
+            style.textContent = `
+      .glass-toast {
+        border-radius: 16px !important;
+        backdrop-filter: blur(12px) saturate(180%) !important;
+        background: rgba(30, 30, 40, 0.75) !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+        overflow: hidden;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .modern-toast {
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #fff;
+      }
+
+      .toast-body {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        gap: 14px;
+      }
+
+      .avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 15px;
+        color: #fff;
+        flex-shrink: 0;
+      }
+
+      .toast-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .user-name {
+        font-weight: 600;
+        font-size: 14px;
+      }
+
+      .toast-action {
+        font-size: 13px;
+        opacity: 0.9;
+      }
+
+      .timestamp {
+        font-size: 11px;
+        opacity: 0.6;
+        margin-top: 3px;
+      }
+
+      .friends-icon {
+        font-size: 24px;
+        flex-shrink: 0;
+        opacity: 0.85;
+      }
+
+      .friendship-message {
+        font-size: 12px;
+        opacity: 0.85;
+        font-style: italic;
+        margin-top: 3px;
+        color: #4ade80;
+      }
+
+      .glass-actions {
+        padding: 10px 16px !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        gap: 8px;
+      }
+
+      .glass-confirm-btn,
+      .glass-cancel-btn {
+        flex: 1;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .glass-confirm-btn {
+        background: #22c55e;
+        color: white;
+      }
+
+      .glass-confirm-btn:hover {
+        background: #16a34a;
+      }
+
+      .glass-cancel-btn {
+        background: rgba(255, 255, 255, 0.15);
+        color: #fff;
+      }
+
+      .glass-cancel-btn:hover {
+        background: rgba(255, 255, 255, 0.25);
+      }
+
+      .swal2-timer-progress-bar {
+        background: linear-gradient(90deg, #4ade80, #22c55e);
+      }
+    `;
+            document.head.appendChild(style);
+        }
     };
 
     const showFollowNotification = (data) => {
@@ -681,8 +876,10 @@ export function usePusher() {
         disconnect,
         markAsRead,
         handleNewFollower,
+        handleBecomeFriends,
         showFollowNotification,
         showVoteNotification,
+        showFriendshipNotification,
     };
 
     // Auto cleanup

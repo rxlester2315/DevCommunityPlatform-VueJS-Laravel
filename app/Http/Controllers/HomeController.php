@@ -10,6 +10,8 @@ use App\Models\Comment;
 use App\Models\Karma;
 use Illuminate\Http\JsonResponse;
 use App\Models\User;
+use App\Models\Friend;
+
 use DB;
 
 use Illuminate\Support\Facades\Auth;
@@ -17,6 +19,7 @@ use App\Events\UserNotification;
 use App\Events\PostDownVoted;
 use App\Events\PostUpvoted;
 use App\Events\UserFollowed;
+use App\Events\BecameFriends;
 
 
 
@@ -659,36 +662,46 @@ public function downvote(Post $post)
     }
 
 
-public function visitProfile($id){
-
-    $profile = Profile::with('user')
+public function visitProfile($id)
+{
+    try {
+        $profile = Profile::with('user')
             ->where('user_id', $id)
             ->firstOrFail();
-            
-            $isFollowing = false;
 
-
-            if (auth()->check()) {
-            $currentUser = auth()->user();
-            $profileUser = User::find($id);
-            
-            // Check if current user follows the profile user
-            $isFollowing = $currentUser->follows($profileUser);
+        // ✅ Find the user manually
+        $user = User::find($id);
+        if (!$user) {
+            return response()->json(['error' => 'User not found'], 404);
         }
 
+        $isFollowing = false;
+        $isFriends = false;
+        $isMutualFollow = false;
+        
+        if (auth()->check()) {
+            $currentUser = auth()->user();
+            $isFollowing = $currentUser->follows($user); // ✅ $user is defined
+            $isFriends = $currentUser->isFriendsWith($user); // ✅ $user is defined
+            $isMutualFollow = $currentUser->isMutualFollowWith($user); // ✅ $user is defined
+        }
 
-
-    return response()->json([
+        return response()->json([
             'profile' => $profile,
             'user' => $profile->user,
-            'is_following' => $isFollowing, 
-            'followers_count' => $profile->user->followers()->count(),
-            'following_count' => $profile->user->following()->count(),
-
+            'is_following' => $isFollowing,
+            'is_friends' => $isFriends,
+            'is_mutual_follow' => $isMutualFollow,
+            'followers_count' => $user->followers()->count(),
+            'following_count' => $user->following()->count(),
+            'friends_count' => $user->friendsCount(),
         ]);
 
+    } catch (\Exception $e) {
+        \Log::error('Visit profile error: ' . $e->getMessage());
+        return response()->json(['error' => 'Failed to load profile'], 500);
+    }
 }
-
 // display yung followers
 public function followers(User $user){
 
@@ -806,64 +819,106 @@ public function follow(User $user): JsonResponse
     }
 
 
-     public function toggleFollow(User $user): JsonResponse
-    {
-        try {
-            if (auth()->id() === $user->id) {
-                throw ValidationException::withMessages([
-                    'user' => ['You cannot follow yourself.']
-                ]);
-            }
+ 
 
-            $wasFollowing = auth()->user()->follows($user);
-            $action = $wasFollowing ? 'unfollowed' : 'followed';
+ 
+ public function toggleFollow(User $user): JsonResponse
+{
+    try {
 
-            DB::transaction(function () use ($user) {
-                auth()->user()->toggleFollow($user);
-            });
-
-            $isFollowing = auth()->user()->follows($user);
-            $followersCount = $user->followers()->count();
-            $followingCount = auth()->user()->following()->count();
-
-
-            if($isFollowing && !$wasFollowing){
-                
-                 event(new UserFollowed(auth()->user(), $user));
-
-
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Successfully ' . $action . ' ' . $user->name,
-                'data' => [
-                    'is_following' => $isFollowing,
-                    'followers_count' => $followersCount,
-                    'following_count' => $followingCount,
-                    'action_performed' => $action,
-                ]
-            ], $isFollowing ? 201 : 200); 
-
-        } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-                'errors' => $e->errors()
-            ], 422);
-
-        } catch (\Exception $e) {
-            \Log::error('Toggle follow error: ' . $e->getMessage(), [
-                'follower_id' => auth()->id(),
-                'followed_id' => $user->id
+        // make sure na hinde mo pwde follow ur self 
+        if (auth()->id() === $user->id) {
+            throw ValidationException::withMessages([
+                'user' => ['You cannot follow yourself.']
             ]);
+        }
+        // intialize lang tayo ng variable na gagamitin for logic
+        $currentUser = auth()->user();
+        $wasFollowing = $currentUser->follows($user);
+        $actionPerformed = false;
+        $becameFriends = false;
 
+        DB::transaction(function () use ($currentUser, $user, &$actionPerformed, &$becameFriends,$wasFollowing) {
+            $actionPerformed = $currentUser->toggleFollow($user);
+            
+            // check natin if they follow each other or both
+            if ($currentUser->follows($user) && $user->follows($currentUser)) {
+                // if hinde sila friend then make them friend
+                if (!Friend::areFriends($currentUser->id, $user->id)) {
+                    Friend::create([
+                        'user_id' => $currentUser->id,
+                        'friend_id' => $user->id,
+                        'friends_since' => now()
+                    ]);
+                    // after that magiging true nato
+                    $becameFriends = true;
+                    
+                    // notify na friend sila
+                    event(new BecameFriends($currentUser, $user));
+                }
+            } else if ($wasFollowing) {
+                // if one of them unfollowing or both them friendship will be remove
+                Friend::where(function ($query) use ($currentUser, $user) {
+                    $query->where('user_id', $currentUser->id)
+                          ->where('friend_id', $user->id);
+                })->orWhere(function ($query) use ($currentUser, $user) {
+                    $query->where('user_id', $user->id)
+                          ->where('friend_id', $currentUser->id);
+                })->delete();
+            }
+        });
+
+        if (!$actionPerformed) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to toggle follow. Please try again.'
-            ], 500);
+                'message' => 'No action was performed.'
+            ], 422);
         }
+
+        // Get updated status
+        $isFollowing = $currentUser->follows($user);
+        $followersCount = $user->followers()->count();
+        $followingCount = $currentUser->following()->count();
+        $isFriends = Friend::areFriends($currentUser->id, $user->id);
+        $action = $isFollowing ? 'followed' : 'unfollowed';
+
+        // Trigger events
+        if ($isFollowing && !$wasFollowing) {
+            event(new UserFollowed($currentUser, $user));
+        }
+
+        if ($becameFriends) {
+            event(new BecameFriends($currentUser, $user));
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Successfully ' . $action . ' ' . $user->name . 
+                        ($becameFriends ? ' - You are now friends!' : ''),
+            'data' => [
+                'is_following' => $isFollowing,
+                'is_friends' => $isFriends,
+                'followers_count' => $followersCount,
+                'following_count' => $followingCount,
+                'became_friends' => $becameFriends,
+            ]
+        ], $isFollowing ? 201 : 200);
+
+    } catch (ValidationException $e) {
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage(),
+            'errors' => $e->errors()
+        ], 422);
+
+    } catch (\Exception $e) {
+        \Log::error('Toggle follow error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to toggle follow.'
+        ], 500);
     }
+}
 
 
      public function isFollowing(User $user): JsonResponse

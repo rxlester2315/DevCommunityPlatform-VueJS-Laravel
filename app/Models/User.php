@@ -189,4 +189,39 @@ public function followers()
             ->exists();
     }
 
+
+    public function friends()
+{
+    return $this->belongsToMany(User::class, 'friends', 'user_id', 'friend_id')
+                ->withPivot('friends_since')
+                ->withTimestamps();
+}
+
+// Check if this user is friends with another user, galing to sa friend model static help
+public function isFriendsWith(User $user): bool
+{
+    return Friend::areFriends($this->id, $user->id);
+}
+
+
+
+public function mutualFriendsWith(User $user)
+{
+    return $this->friends()->whereHas('friends', function ($query) use ($user) {
+        $query->where('friend_id', $user->id);
+    });
+}
+
+// Check if mutual follow (both follow each other)
+public function isMutualFollowWith(User $user): bool
+{
+    return $this->follows($user) && $user->follows($this);
+}
+
+// Get friends count
+public function friendsCount(): int
+{
+    return $this->friends()->count();
+}
+
 }

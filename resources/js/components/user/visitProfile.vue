@@ -28,6 +28,8 @@ const isDropdownVisible = ref(false);
 const followLoading = ref(false);
 const isFollowing = ref(false);
 const followerCount = ref(0);
+const isFriends = ref(false);
+const isMutualFollow = ref(false);
 
 // Computed property for user initials
 const userInitials = computed(() => {
@@ -42,6 +44,8 @@ const fetchProfile = async () => {
         );
         profile.value = response.data.profile;
         isFollowing.value = response.data.is_following;
+        isFriends.value = response.data.is_friends;
+        isMutualFollow.value = response.data.is_mutual_follow;
     } catch (error) {
         console.error("Failed to fetch Profile", error);
         Swal.fire({
@@ -63,10 +67,14 @@ const followUser = async () => {
         );
 
         isFollowing.value = response.data.data.is_following;
+        isFriends.value = response.data.data.is_friends;
 
         const action = isFollowing.value ? "followed" : "unfollowed";
-        const message = `You have ${action} ${profile.value.user.name}.`;
+        let message = `You have ${action} ${profile.value.user.name}.`;
 
+        if (response.data.data.became_friends) {
+            message += " - You are now friends! 🎉";
+        }
         await Swal.fire({
             toast: true,
             icon: "success",
@@ -315,7 +323,9 @@ watch(
                                     :disabled="followLoading"
                                     :class="[
                                         'px-6 py-2 rounded-lg transition-colors font-medium flex items-center gap-2',
-                                        isFollowing
+                                        isFriends
+                                            ? 'bg-green-600 text-white hover:bg-green-700 border border-green-500'
+                                            : isFollowing
                                             ? 'bg-gray-700 text-white hover:bg-gray-600 border border-gray-600'
                                             : 'bg-orange-500 text-white hover:bg-orange-600',
                                         followLoading
@@ -329,7 +339,13 @@ watch(
                                         class="fas fa-spinner fa-spin"
                                     ></i>
 
-                                    <!-- Following Icon (when already following) -->
+                                    <!-- Friends Icon (when friends) -->
+                                    <i
+                                        v-else-if="isFriends"
+                                        class="fas fa-user-friends"
+                                    ></i>
+
+                                    <!-- Following Icon (when following but not friends) -->
                                     <i
                                         v-else-if="isFollowing"
                                         class="fas fa-user-check"
@@ -343,6 +359,8 @@ watch(
                                         {{
                                             followLoading
                                                 ? "Loading..."
+                                                : isFriends
+                                                ? "Friends"
                                                 : isFollowing
                                                 ? "Following"
                                                 : "Follow"
