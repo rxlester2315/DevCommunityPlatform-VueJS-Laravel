@@ -12,6 +12,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use App\Models\activityLogs;
 
 
 // Note : This Controller responsible for 
@@ -64,70 +65,46 @@ public function store(Request $request)
 // we are verifying  if tama and si user ba talaga ang login
 public function authenticate(Request $request)
 {    
-
-    // validation lang make sure na not random character yung input
     $request->validate([
         'email' => 'required|string|email',
         'password' => 'required|string',
     ]);
 
-
-    // Only extract the 'email' and 'password' fields from the incoming request.
-    // Reasons and notes:
-    // - Limits the data passed to Auth::attempt() to exactly what is needed for authentication
-    //   (defense-in-depth). This prevents accidental or malicious extra fields from being
     $credentials = $request->only('email', 'password');
-    
 
-    //  here we are checking if the creadentials is tama if tama then proceed tayo sa condition
     if (Auth::attempt($credentials)) {
-        // this mean auth is current authenticated and then record natin yung time 
-        // pag login nya base in asia/manila time
         $user = Auth::user();
-        $dt = Carbon::now('Asia/Manila');
-
-
-        // after login then insert natin sa db ng activity_logs yung data like name,email,desc,etc
-        DB::table('activity_logs')->insert([
+        
+        ActivityLogs::create([
+            'user_id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
-            'description' => 'Has Login',
+            'description' => 'User logged in',
             'status_activity' => 'Online',
-            'date_time' => $dt,
-            'created_at' => now(),
-            'updated_at' => now(),
-
+            'date_time' => now('Asia/Manila'),
         ]);
 
-        // since we are using JWT token or we are auth Token base  
-        // we need to create token that will store in localstorage 
-        // and this token use for every request of the user
         $token = $user->createToken('auth-token')->plainTextToken;
-      
 
-      // after that we will convert those data into json type data 
-      // and then we're ready na tayo for 
-      // passing this data from front-end so that pwde nanatin ma display
         return response()->json([
             'success' => true,
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'last_login' => $dt->toDateTimeString(),
+                'is_online' => true, 
+                'last_seen' => now()->toDateTimeString(),
             ],
-            'token' => $token, // the token to be stored in localstorage
+            'token' => $token,
             'message' => 'Login successful'
         ]);
     }
-   // if mag fails we still send the data in front-end
-   // saying na yung pag pass ng data is fail
+
     return response()->json([
         'success' => false,
         'message' => 'Invalid credentials'
     ], 401);
 }
-
 
     // Return the currently authenticated user's public profile.
     // - Uses Auth::user() to retrieve the user tied to the current session/token.
@@ -173,15 +150,14 @@ public function logout(Request $request)
        // activity_logs this time data naman ng pag logout niya same lang din 
        // kay pag login na function or authenticate diff lang is yung pag logout
         if ($user) {
-            DB::table('activity_logs')->insert([
-                'name' => $user->name,
-                'email' => $user->email,
-                'description' => 'Has Logout',
-                'status_activity' => 'Offline',
-                'date_time' => $dt,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+      ActivityLogs::create([
+        'user_id' => $user->id,
+        'name' => $user->name,
+        'email' => $user->email,
+        'description' => 'User logged out',
+        'status_activity' => 'Offline',
+        'date_time' => now('Asia/Manila'),
+    ]);
             
             \Log::info('Logout activity recorded for: ' . $user->email);
         }

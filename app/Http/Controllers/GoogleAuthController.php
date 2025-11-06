@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Models\activityLogs;
 
 use App\Models\User;
 use Carbon\Carbon;
@@ -165,14 +166,14 @@ public function callbackWeb(Request $request)
 
         // Logs the activity in your activity_logs table.
         $dt = Carbon::now('Asia/Manila');
-        DB::table('activity_logs')->insert([
+        ActivityLogs::create([
+            'user_id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
             'description' => 'Has Login via Google',
             'status_activity' => 'Online',
             'date_time' => $dt,
-            'created_at' => now(),
-            'updated_at' => now(),
+          
         ]);
 
         return view('google-callback', [
@@ -183,7 +184,8 @@ public function callbackWeb(Request $request)
                 'email' => $user->email,
                 'username' => $user->username,
                 'avatar' => $user->avatar,
-                'last_login' => $dt->toDateTimeString(),
+                'is_online' => true, 
+                'last_seen' => now()->toDateTimeString(),
             ],
             'token' => $token
         ]);

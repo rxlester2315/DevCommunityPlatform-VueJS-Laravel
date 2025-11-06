@@ -32,6 +32,10 @@ const isLoading = ref(false);
 const user = ref(null);
 const total_comments = ref(0);
 const currentUserId = ref(null);
+const loadingFriends = ref(false);
+const friends = ref([]);
+const totalFriends = ref(0);
+const onlineFriendsCount = ref(0);
 
 const currentUser = computed(() => auth.getUser()); // ✅ Correct - calls the function
 
@@ -46,6 +50,86 @@ function onPostVoted(voteData) {
         posts.value[postIndex].user_vote = voteData.userVote;
     }
 }
+
+const fetchFriends = async () => {
+    loadingFriends.value = true;
+    try {
+        const currentUser = auth.getUser();
+        const userId = currentUser?.id;
+
+        if (!userId) {
+            console.error("❌ No user ID found - user not authenticated");
+            friends.value = [];
+            return;
+        }
+
+        console.log("👤 Current user ID:", userId);
+
+        // Try different endpoints - use the one that works for you
+        const response = await axios.get(`/api/friends/${userId}/list`);
+        // OR: const response = await axios.get('/api/friends/my-list');
+        // OR: const response = await axios.get(`/api/friends/${route.params.id}/list`);
+
+        console.log("📦 Friends API Response:", response.data);
+
+        if (response.data.success) {
+            friends.value =
+                response.data.data.friends.data ||
+                response.data.data.friends ||
+                [];
+            totalFriends.value = response.data.data.total_friends || 0;
+            onlineFriendsCount.value =
+                response.data.data.online_friends_count || 0;
+
+            console.log("👥 Friends data:", friends.value);
+            console.log("📊 Total friends:", totalFriends.value);
+        } else {
+            console.log("❌ API returned success: false");
+        }
+    } catch (error) {
+        console.error("❌ Error fetching friends:", error);
+        console.log("🔍 Error response:", error.response?.data);
+        friends.value = [];
+    } finally {
+        loadingFriends.value = false;
+    }
+};
+
+const getFriendInitials = (name) => {
+    if (!name) return "F";
+    return name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+};
+
+const formatLastSeen = (lastSeen) => {
+    if (!lastSeen) return "Offline";
+
+    const lastSeenDate = new Date(lastSeen);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now - lastSeenDate) / (1000 * 60));
+
+    if (diffInMinutes < 1) return "Just now";
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
+    return `${Math.floor(diffInMinutes / 1440)}d ago`;
+};
+
+const formatFriendsSince = (friendsSince) => {
+    if (!friendsSince) return "";
+
+    const date = new Date(friendsSince);
+    const now = new Date();
+    const diffInDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+
+    if (diffInDays < 1) return "Today";
+    if (diffInDays < 30) return `${diffInDays}d`;
+    if (diffInDays < 365) return `${Math.floor(diffInDays / 30)}mo`;
+    return `${Math.floor(diffInDays / 365)}y`;
+};
 
 async function fetchPosts() {
     isLoadingPosts.value = true;
@@ -610,6 +694,7 @@ const goToComments = (postId) => {
 onMounted(() => {
     const user = auth.getUser();
     currentUserId.value = user?.id;
+    fetchFriends();
 });
 
 const VisitProfile = (userId) => {
@@ -1297,70 +1382,159 @@ const VisitProfile = (userId) => {
                     <div
                         class="bg-gray-900 border border-gray-800 rounded-lg p-6"
                     >
-                        <h3 class="text-lg font-bold text-white mb-4">
-                            Popular Communities
-                        </h3>
-                        <div class="space-y-3">
-                            <a
-                                href="#"
-                                class="flex items-center gap-3 p-2 hover:bg-gray-800 rounded-lg transition-colors group"
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-bold text-white">
+                                Friends
+                            </h3>
+                            <div class="flex items-center gap-2">
+                                <span
+                                    v-if="onlineFriendsCount > 0"
+                                    class="inline-flex items-center gap-1 text-xs text-green-400 bg-green-900/20 px-2 py-1 rounded-full"
+                                >
+                                    <span
+                                        class="w-2 h-2 bg-green-400 rounded-full"
+                                    ></span>
+                                    {{ onlineFriendsCount }} online
+                                </span>
+                                <span class="text-sm text-gray-400">
+                                    {{ totalFriends }} total
+                                </span>
+                            </div>
+                        </div>
+
+                        <div v-if="loadingFriends" class="space-y-3">
+                            <!-- Loading Skeleton -->
+                            <div
+                                v-for="n in 3"
+                                :key="n"
+                                class="flex items-center gap-3 p-2"
                             >
                                 <div
-                                    class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center text-white font-bold"
-                                >
-                                    JS
-                                </div>
-                                <div class="flex-1">
+                                    class="w-10 h-10 bg-gray-800 rounded-lg animate-pulse"
+                                ></div>
+                                <div class="flex-1 space-y-2">
                                     <div
-                                        class="text-white font-medium group-hover:text-orange-500 transition-colors"
-                                    >
-                                        JavaScript
-                                    </div>
-                                    <div class="text-sm text-gray-400">
-                                        245k members
-                                    </div>
+                                        class="h-4 bg-gray-800 rounded animate-pulse"
+                                    ></div>
+                                    <div
+                                        class="h-3 bg-gray-800 rounded animate-pulse w-3/4"
+                                    ></div>
                                 </div>
-                            </a>
-                            <a
-                                href="#"
-                                class="flex items-center gap-3 p-2 hover:bg-gray-800 rounded-lg transition-colors group"
+                            </div>
+                        </div>
+
+                        <div v-else-if="friends.length > 0" class="space-y-3">
+                            <div
+                                v-for="friend in friends"
+                                :key="friend.id"
+                                class="flex items-center gap-3 p-2 hover:bg-gray-800 rounded-lg transition-colors group cursor-pointer"
+                                @click="VisitProfile(friend.id)"
                             >
-                                <div
-                                    class="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center text-white font-bold"
-                                >
-                                    PY
-                                </div>
-                                <div class="flex-1">
+                                <div class="relative">
                                     <div
-                                        class="text-white font-medium group-hover:text-orange-500 transition-colors"
+                                        class="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold overflow-hidden"
+                                        :class="
+                                            friend.profile?.photo_profile
+                                                ? 'bg-gray-700'
+                                                : 'bg-gradient-to-br from-blue-500 to-cyan-500'
+                                        "
                                     >
-                                        Python
+                                        <img
+                                            v-if="friend.profile?.photo_profile"
+                                            :src="
+                                                '/storage/' +
+                                                friend.profile.photo_profile
+                                            "
+                                            :alt="friend.name"
+                                            class="w-full h-full object-cover"
+                                        />
+                                        <span v-else>
+                                            {{ getFriendInitials(friend.name) }}
+                                        </span>
                                     </div>
-                                    <div class="text-sm text-gray-400">
-                                        198k members
-                                    </div>
-                                </div>
-                            </a>
-                            <a
-                                href="#"
-                                class="flex items-center gap-3 p-2 hover:bg-gray-800 rounded-lg transition-colors group"
-                            >
-                                <div
-                                    class="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center text-white font-bold"
-                                >
-                                    WD
-                                </div>
-                                <div class="flex-1">
+                                    <!-- Online Status Indicator -->
                                     <div
-                                        class="text-white font-medium group-hover:text-orange-500 transition-colors"
+                                        class="absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-gray-900"
+                                        :class="
+                                            friend.is_online
+                                                ? 'bg-green-400'
+                                                : 'bg-gray-500'
+                                        "
+                                        :title="
+                                            friend.is_online
+                                                ? 'Online'
+                                                : `Last seen ${formatLastSeen(
+                                                      friend.last_seen
+                                                  )}`
+                                        "
+                                    ></div>
+                                </div>
+
+                                <!-- Friend Info -->
+                                <div class="flex-1 min-w-0">
+                                    <div
+                                        class="text-white font-medium group-hover:text-orange-500 transition-colors truncate"
                                     >
-                                        Web Design
+                                        {{ friend.name }}
                                     </div>
-                                    <div class="text-sm text-gray-400">
-                                        156k members
+                                    <div
+                                        class="text-sm text-gray-400 flex items-center gap-1"
+                                    >
+                                        <span
+                                            v-if="friend.is_online"
+                                            class="text-green-400 flex items-center gap-1"
+                                        >
+                                            <span
+                                                class="w-1.5 h-1.5 bg-green-400 rounded-full"
+                                            ></span>
+                                            Online
+                                        </span>
+                                        <span
+                                            v-else
+                                            class="flex items-center gap-1"
+                                        >
+                                            <span
+                                                class="w-1.5 h-1.5 bg-gray-500 rounded-full"
+                                            ></span>
+                                            {{
+                                                formatLastSeen(friend.last_seen)
+                                            }}
+                                        </span>
                                     </div>
                                 </div>
-                            </a>
+
+                                <!-- Friends Since Badge -->
+                                <div
+                                    v-if="friend.friends_since"
+                                    class="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded"
+                                    title="Friends since"
+                                >
+                                    {{
+                                        formatFriendsSince(friend.friends_since)
+                                    }}
+                                </div>
+                            </div>
+
+                            <!-- View All Friends Link -->
+                            <div class="pt-2 border-t border-gray-800">
+                                <button
+                                    @click="viewAllFriends"
+                                    class="w-full text-center text-orange-500 hover:text-orange-400 text-sm font-medium py-2 transition-colors"
+                                >
+                                    View All Friends
+                                </button>
+                            </div>
+                        </div>
+
+                        <div v-else class="text-center py-8">
+                            <div class="text-gray-400 mb-2">
+                                <i class="fas fa-users text-2xl mb-3"></i>
+                            </div>
+                            <p class="text-gray-400 text-sm">No friends yet</p>
+                            <p class="text-gray-500 text-xs mt-1">
+                                Friends will appear here when you follow each
+                                other
+                            </p>
                         </div>
                     </div>
 

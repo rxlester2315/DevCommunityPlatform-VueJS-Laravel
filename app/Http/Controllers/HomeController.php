@@ -11,6 +11,7 @@ use App\Models\Karma;
 use Illuminate\Http\JsonResponse;
 use App\Models\User;
 use App\Models\Friend;
+use App\Models\activityLogs;
 
 use DB;
 
@@ -850,6 +851,14 @@ public function follow(User $user): JsonResponse
                         'friend_id' => $user->id,
                         'friends_since' => now()
                     ]);
+
+                      Friend::create([
+                        'user_id' => $user->id,
+                        'friend_id' => $currentUser->id,
+                        'friends_since' => now()
+                    ]);
+
+
                     // after that magiging true nato
                     $becameFriends = true;
                     
@@ -946,6 +955,48 @@ public function follow(User $user): JsonResponse
             ], 500);
         }
     }
+
+
+public function getFriends(User $user): JsonResponse
+{
+    try {
+        $friends = $user->friends()
+            ->with(['profile'])
+            ->orderBy('friends_since', 'desc')
+            ->paginate(20);
+
+        // Transform the data - USE THE ATTRIBUTES
+        $friends->getCollection()->transform(function ($friend) {
+            return [
+                'id' => $friend->id,
+                'name' => $friend->name,
+                'username' => $friend->username,
+                'email' => $friend->email,
+                'profile' => $friend->profile,
+                'is_online' => $friend->is_online, // ✅ Use the attribute
+                'last_seen' => $friend->last_seen,  // ✅ Use the attribute
+                'friends_since' => $friend->pivot->friends_since ?? null,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'friends' => $friends,
+                'total_friends' => $friends->total(),
+                'online_friends_count' => $friends->where('is_online', true)->count()
+            ]
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Get friends error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to load friends list.'
+        ], 500);
+    }
+}
+
 
 
     

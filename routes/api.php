@@ -114,3 +114,6 @@ Route::post('/users/{user}/follow', [HomeController::class, 'follow'])->middlewa
 
 Route::post('/users/{user}/unfollow', [HomeController::class, 'unfollow'])->middleware('auth:sanctum');
 Route::post('/users/{user}/toggle', [HomeController::class, 'toggleFollow'])->middleware('auth:sanctum');
+
+
+Route::get('/friends/{user}/list', [HomeController::class, 'getFriends']);

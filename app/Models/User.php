@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use App\Models\Profile;
+use App\Models\activityLogs;
 
 use Laravel\Sanctum\HasApiTokens;
 
@@ -223,5 +224,41 @@ public function friendsCount(): int
 {
     return $this->friends()->count();
 }
+
+
+public function activityLogs()
+{
+    return $this->hasMany(activityLogs::class);
+}
+
+//This uses Laravel’s built-in latestOfMany
+// helper — cleaner than manually sorting and limiting.
+public function latestActivity()
+{
+    return $this->hasOne(activityLogs::class)->latestOfMany();
+}
+
+//A boolean check to see if a user is online right now.
+// Returns true or false
+
+public function getIsOnlineAttribute(): bool
+{
+    return $this->activityLogs()
+        ->where('created_at', '>=', now()->subMinutes(5))
+        ->where('status_activity', 'online')
+        ->exists();
+}
+
+
+// To show when the user was last active.
+// Uses the relationship latestActivity above.
+public function getLastSeenAttribute()
+{
+    $latestActivity = $this->activityLogs()->latest()->first();
+    return $latestActivity ? $latestActivity->created_at : null;
+}
+
+
+
 
 }
