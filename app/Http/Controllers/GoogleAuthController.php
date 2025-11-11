@@ -161,6 +161,10 @@ public function callbackWeb(Request $request)
                 'avatar' => $googleUser->getAvatar(),
             ]);
         }
+
+               Auth::guard('web')->login($user, true);
+        
+             session()->regenerate();
            // same with custom login wherein we create token for the user and pass it to the browser
          $token = $user->createToken('google-auth-token')->plainTextToken;
 

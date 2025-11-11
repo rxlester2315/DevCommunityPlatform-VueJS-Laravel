@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\GoogleAuthController;
+use App\Http\Controllers\ChatController;
 
 
 
@@ -116,4 +117,8 @@ Route::post('/users/{user}/unfollow', [HomeController::class, 'unfollow'])->midd
 Route::post('/users/{user}/toggle', [HomeController::class, 'toggleFollow'])->middleware('auth:sanctum');
 
 
-Route::get('/friends/{user}/list', [HomeController::class, 'getFriends']);
+Route::get('/friends/{user}/list', [HomeController::class, 'getFriends'])->middleware('auth:sanctum');
+
+
+Route::get('/chat/messages/{userId}', [ChatController::class, 'index'])->middleware('auth:sanctum');
+Route::post('/chat/send', [ChatController::class, 'sendMessage'])->middleware('auth:sanctum');

@@ -18,6 +18,8 @@ class BroadcastServiceProvider extends ServiceProvider
             return (int) $user->id === (int) $userId;
         });
 
+        
+
     Broadcast::channel('post.{postId}', function ($user, $postId) {
     $post = Post::find($postId);
 
@@ -25,6 +27,9 @@ class BroadcastServiceProvider extends ServiceProvider
 
     return $post && ($user->id === $post->user_id || $hasCommented);
 });
+
+
+
 
 
         

@@ -8,24 +8,19 @@ export function usePusher() {
     const isConnected = ref(false);
     const notifications = ref([]);
 
+    const chatMessages = ref([]);
+    const activeChatChannels = ref(new Map());
+
     // by this u can call this inside of your vue components or reusable composables
 
     // function wherein pusher connection with logged in user id is established
     const initPusher = (userId) => {
-        // this for debug purposes lang
-        console.log("🔧 INIT PUSHER DEBUG:");
-        console.log("🔧 User ID received:", userId);
-        console.log("🔧 User ID type:", typeof userId);
-        console.log("🔧 Token exists:", !!localStorage.getItem("token"));
-
-        // Check if userId is valid
         if (!userId || userId === "undefined" || userId === "null") {
             console.error("❌ Invalid user ID for Pusher:", userId);
             return;
         }
 
         userId = String(userId).trim();
-        console.log("🔧 User ID after conversion:", userId);
 
         // here checking lang tayo if pusher is already connected, if so disconnect first bago create ng new connection
         if (pusher.value) {
@@ -71,19 +66,163 @@ export function usePusher() {
             handleBecomeFriends(data);
         });
 
+        channel.bind("new.chat.message", (data) => {
+            handleNewChatMessage(data);
+        });
+
         // Connection events
         // this debug purposes only
         pusher.value.connection.bind("connected", () => {
             isConnected.value = true;
-            console.log("✅ Pusher connected");
         });
 
         pusher.value.connection.bind("disconnected", () => {
             isConnected.value = false;
-            console.log("🔴 Pusher disconnected");
         });
 
         return pusher.value;
+    };
+
+    const subscribeToChat = (userId, friendId) => {
+        if (!pusher.value) return;
+
+        const channelName = getChatChannelName(userId, friendId);
+
+        // Unsubscribe from previous channel if exists
+        if (activeChatChannels.value.has(channelName)) {
+            unsubscribeFromChat(userId, friendId);
+        }
+
+        const channel = pusher.value.subscribe(`private-user.${userId}`);
+
+        channel.bind("MessageSent", (data) => {
+            console.log("📨 Chat message received via Pusher:", data);
+            handleNewChatMessage(data.chat);
+        });
+
+        channel.bind("subscription_succeeded", () => {
+            console.log(`✅ Subscribed to chat channel: ${channelName}`);
+        });
+
+        channel.bind("subscription_error", (error) => {
+            console.error("❌ Chat subscription error:", error);
+        });
+
+        activeChatChannels.value.set(channelName, channel);
+    };
+
+    const unsubscribeFromChat = (userId, friendId) => {
+        const channelName = getChatChannelName(userId, friendId);
+        const channel = activeChatChannels.value.get(channelName);
+
+        if (channel) {
+            channel.unbind("MessageSent");
+            pusher.value?.unsubscribe(`private-chat.${channelName}`);
+            activeChatChannels.value.delete(channelName);
+            console.log(`🔴 Unsubscribed from chat channel: ${channelName}`);
+        }
+    };
+
+    const getChatChannelName = (userId, friendId) => {
+        const users = [parseInt(userId), parseInt(friendId)];
+        users.sort((a, b) => a - b);
+        return users.join(".");
+    };
+    const handleNewChatMessage = (data) => {
+        console.log("📨 New chat message received in usePusher:", data);
+
+        // IMPORTANT: Directly push to the reactive chatMessages array
+        // This ensures the watcher in Home.vue can detect the change
+        chatMessages.value.push({
+            id: data.id,
+            message: data.message,
+            sender_id: data.sender_id,
+            receiver_id: data.receiver_id,
+            created_at: data.created_at,
+            sender_name: data.sender_name,
+            receiver_name: data.receiver_name,
+        });
+
+        console.log(
+            "✅ Message added to chatMessages array. New count:",
+            chatMessages.value.length
+        );
+
+        // Show notification if needed
+        if (!isChatOpenWithUser(data.sender_id)) {
+            showChatNotification(data);
+        }
+    };
+
+    const isChatOpenWithUser = (senderId) => {
+        // You'll need to track this in your component
+        return window.currentChatOpen === senderId;
+    };
+
+    const showChatNotification = (data) => {
+        if (typeof Swal === "undefined") return;
+
+        const initials = data.sender_name
+            .split(" ")
+            .map((n) => n[0])
+            .join("")
+            .toUpperCase();
+
+        const notificationHTML = `
+        <div class="modern-toast">
+            <div class="toast-body">
+                <div class="avatar" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+                    ${initials}
+                </div>
+                <div class="toast-info">
+                    <div class="user-name">${data.sender_name}</div>
+                    <div class="toast-action">sent you a message</div>
+                    <div class="message-preview">${data.message.substring(
+                        0,
+                        50
+                    )}${data.message.length > 50 ? "..." : ""}</div>
+                    <div class="timestamp">${new Date().toLocaleTimeString()}</div>
+                </div>
+                <div class="message-icon">💬</div>
+            </div>
+        </div>
+    `;
+
+        Swal.fire({
+            html: notificationHTML,
+            toast: true,
+            position: "top-end",
+            width: 400,
+            padding: 0,
+            background: "rgba(30, 30, 40, 0.7)",
+            color: "#fff",
+            showConfirmButton: true,
+            showCancelButton: true,
+            confirmButtonText: "Open Chat",
+            cancelButtonText: "Dismiss",
+            timer: 8000,
+            timerProgressBar: true,
+            showCloseButton: true,
+            customClass: {
+                popup: "glass-toast",
+                confirmButton: "glass-confirm-btn",
+                cancelButton: "glass-cancel-btn",
+                actions: "glass-actions",
+            },
+            didOpen: (toast) => {
+                toast.addEventListener("mouseenter", Swal.stopTimer);
+                toast.addEventListener("mouseleave", Swal.resumeTimer);
+            },
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Trigger chat opening - you'll need to handle this in your component
+                window.dispatchEvent(
+                    new CustomEvent("open-chat", {
+                        detail: { friendId: data.sender_id },
+                    })
+                );
+            }
+        });
     };
 
     const handleNewFollower = (data) => {
@@ -872,6 +1011,7 @@ export function usePusher() {
         pusher,
         isConnected,
         notifications,
+        chatMessages,
         initPusher,
         disconnect,
         markAsRead,
@@ -880,6 +1020,7 @@ export function usePusher() {
         showFollowNotification,
         showVoteNotification,
         showFriendshipNotification,
+        handleNewChatMessage,
     };
 
     // Auto cleanup
