@@ -11,6 +11,10 @@ export function usePusher() {
     const chatMessages = ref([]);
     const activeChatChannels = ref(new Map());
 
+    // =========================================================
+    // Initialize Pusher Connection
+    // =========================================================
+
     // by this u can call this inside of your vue components or reusable composables
 
     // function wherein pusher connection with logged in user id is established
@@ -83,6 +87,16 @@ export function usePusher() {
         return pusher.value;
     };
 
+    // =========================================================
+    // Chat Subscription Helpers
+    // =========================================================
+
+    const getChatChannelName = (userId, friendId) => {
+        const users = [parseInt(userId), parseInt(friendId)];
+        users.sort((a, b) => a - b);
+        return users.join(".");
+    };
+
     const subscribeToChat = (userId, friendId) => {
         if (!pusher.value) return;
 
@@ -123,11 +137,6 @@ export function usePusher() {
         }
     };
 
-    const getChatChannelName = (userId, friendId) => {
-        const users = [parseInt(userId), parseInt(friendId)];
-        users.sort((a, b) => a - b);
-        return users.join(".");
-    };
     const handleNewChatMessage = (data) => {
         console.log("📨 New chat message received in usePusher:", data);
 
@@ -147,11 +156,6 @@ export function usePusher() {
             "✅ Message added to chatMessages array. New count:",
             chatMessages.value.length
         );
-
-        // Show notification if needed
-        if (!isChatOpenWithUser(data.sender_id)) {
-            showChatNotification(data);
-        }
     };
 
     const isChatOpenWithUser = (senderId) => {
@@ -159,70 +163,33 @@ export function usePusher() {
         return window.currentChatOpen === senderId;
     };
 
-    const showChatNotification = (data) => {
-        if (typeof Swal === "undefined") return;
+    // =========================================================
+    // Notification Handling (Comment, Vote, Follow, Friend, Chat)
+    // =========================================================
 
-        const initials = data.sender_name
-            .split(" ")
-            .map((n) => n[0])
-            .join("")
-            .toUpperCase();
-
-        const notificationHTML = `
-        <div class="modern-toast">
-            <div class="toast-body">
-                <div class="avatar" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
-                    ${initials}
-                </div>
-                <div class="toast-info">
-                    <div class="user-name">${data.sender_name}</div>
-                    <div class="toast-action">sent you a message</div>
-                    <div class="message-preview">${data.message.substring(
-                        0,
-                        50
-                    )}${data.message.length > 50 ? "..." : ""}</div>
-                    <div class="timestamp">${new Date().toLocaleTimeString()}</div>
-                </div>
-                <div class="message-icon">💬</div>
-            </div>
-        </div>
-    `;
-
-        Swal.fire({
-            html: notificationHTML,
-            toast: true,
-            position: "top-end",
-            width: 400,
-            padding: 0,
-            background: "rgba(30, 30, 40, 0.7)",
-            color: "#fff",
-            showConfirmButton: true,
-            showCancelButton: true,
-            confirmButtonText: "Open Chat",
-            cancelButtonText: "Dismiss",
-            timer: 8000,
-            timerProgressBar: true,
-            showCloseButton: true,
-            customClass: {
-                popup: "glass-toast",
-                confirmButton: "glass-confirm-btn",
-                cancelButton: "glass-cancel-btn",
-                actions: "glass-actions",
-            },
-            didOpen: (toast) => {
-                toast.addEventListener("mouseenter", Swal.stopTimer);
-                toast.addEventListener("mouseleave", Swal.resumeTimer);
-            },
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Trigger chat opening - you'll need to handle this in your component
-                window.dispatchEvent(
-                    new CustomEvent("open-chat", {
-                        detail: { friendId: data.sender_id },
-                    })
-                );
-            }
+    const handleNewComment = (data) => {
+        notifications.value.unshift({
+            id: Date.now(),
+            type: "comment",
+            data: data,
+            read: false,
+            timestamp: new Date(),
         });
+
+        showNotification(data);
+    };
+
+    const handleNewVote = (data) => {
+        notifications.value.unshift({
+            id: Date.now(),
+            type: "vote",
+            data: data,
+            read: false,
+            timestamp: new Date(),
+        });
+
+        // Then call the showVoteNotification function to display the notification UI
+        showVoteNotification(data);
     };
 
     const handleNewFollower = (data) => {
@@ -234,7 +201,7 @@ export function usePusher() {
             timestamp: new Date(),
         });
 
-        // Show the notification UI
+        // Show the notification
         showFollowNotification(data);
     };
 
@@ -249,6 +216,32 @@ export function usePusher() {
 
         showFriendshipNotification(data);
     };
+
+    // =========================================================
+    // Utility Functions
+    // =========================================================
+
+    // function to mark notification as read for future use in the notification dropdown
+    const markAsRead = (notificationId) => {
+        const notification = notifications.value.find(
+            (n) => n.id === notificationId
+        );
+        if (notification) {
+            notification.read = true;
+        }
+    };
+    // function to disconnect pusher connection
+    const disconnect = () => {
+        if (pusher.value) {
+            pusher.value.disconnect();
+            pusher.value = null;
+            isConnected.value = false;
+        }
+    };
+
+    // =========================================================
+    // SweetAlert Notification Templates
+    // =========================================================
 
     const showFriendshipNotification = (data) => {
         if (typeof Swal === "undefined") return;
@@ -599,37 +592,6 @@ export function usePusher() {
         }
     };
 
-    const handleNewComment = (data) => {
-        notifications.value.unshift({
-            id: Date.now(),
-            type: "comment",
-            data: data,
-            read: false,
-            timestamp: new Date(),
-        });
-
-        showNotification(data);
-    };
-    // eto function na to is mag di display ng notification gamit yung Swal.fire ex.John Doe commented on your post: "Great post!"
-
-    // function to mark notification as read for future use in the notification dropdown
-    const markAsRead = (notificationId) => {
-        const notification = notifications.value.find(
-            (n) => n.id === notificationId
-        );
-        if (notification) {
-            notification.read = true;
-        }
-    };
-    // function to disconnect pusher connection
-    const disconnect = () => {
-        if (pusher.value) {
-            pusher.value.disconnect();
-            pusher.value = null;
-            isConnected.value = false;
-        }
-    };
-
     const showNotification = (data) => {
         if (typeof Swal === "undefined") return;
 
@@ -797,19 +759,6 @@ export function usePusher() {
     `;
             document.head.appendChild(style);
         }
-    };
-
-    const handleNewVote = (data) => {
-        notifications.value.unshift({
-            id: Date.now(),
-            type: "vote",
-            data: data,
-            read: false,
-            timestamp: new Date(),
-        });
-
-        // Then call the showVoteNotification function to display the notification UI
-        showVoteNotification(data);
     };
 
     const showVoteNotification = (data) => {
@@ -1005,7 +954,17 @@ export function usePusher() {
         }
     };
 
-    // ... rest of your existing code ...
+    // =========================================================
+    // Lifecycle Cleanup
+    // =========================================================
+
+    onUnmounted(() => {
+        disconnect();
+    });
+
+    // =========================================================
+    // Exports
+    // =========================================================
 
     return {
         pusher,
@@ -1021,19 +980,5 @@ export function usePusher() {
         showVoteNotification,
         showFriendshipNotification,
         handleNewChatMessage,
-    };
-
-    // Auto cleanup
-    onUnmounted(() => {
-        disconnect();
-    });
-
-    return {
-        pusher,
-        isConnected,
-        notifications,
-        initPusher,
-        disconnect,
-        markAsRead,
     };
 }
